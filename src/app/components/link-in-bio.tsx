@@ -58,9 +58,9 @@ const themes = [
 export function LinkInBio() {
   const [links, setLinks] = useState<LinkBlock[]>(initialLinks);
   const [selectedTheme, setSelectedTheme] = useState(themes[0]);
-  const [bioName, setBioName] = useState("Acme Inc.");
-  const [bioHandle, setBioHandle] = useState("@acmeinc");
-  const [bioDescription, setBioDescription] = useState("Building the future of social media management");
+  const [bioName, setBioName] = useState("Acme DZ");
+  const [bioHandle, setBioHandle] = useState("@acmedz");
+  const [bioDescription, setBioDescription] = useState("Solutions digitales pour les entreprises algeriennes");
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">("mobile");
   const [showAddLink, setShowAddLink] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -111,8 +111,8 @@ export function LinkInBio() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText("https://socialq.bio/acmeinc");
-                  toast.success("Link copied to clipboard!");
+                  navigator.clipboard.writeText("https://socialdz.bio/acmedz");
+                  toast.success("Lien copie dans le presse-papiers !");
                 }}
                 className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors flex items-center gap-2"
                 style={{ fontSize: 13, fontWeight: 500 }}
@@ -315,7 +315,7 @@ export function LinkInBio() {
             <Monitor size={16} />
           </button>
         </div>
-        <p className="text-muted-foreground mb-3" style={{ fontSize: 11 }}>socialq.bio/acmeinc</p>
+        <p className="text-muted-foreground mb-3" style={{ fontSize: 11 }}>socialdz.bio/acmedz</p>
 
         {/* Phone frame */}
         <div className={`${previewMode === "mobile" ? "w-[300px]" : "w-full"} rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-800`}>
@@ -354,7 +354,7 @@ export function LinkInBio() {
               ))}
             </div>
 
-            <p className="mt-6 opacity-40" style={{ fontSize: 10 }}>Powered by SocialQ</p>
+            <p className="mt-6 opacity-40" style={{ fontSize: 10 }}>Propulse par SocialdZ</p>
           </div>
         </div>
       </div>

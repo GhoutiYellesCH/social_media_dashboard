@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Clock,
   Zap,
+  Coins,
 } from "lucide-react";
 import {
   AreaChart,
@@ -56,17 +57,17 @@ const bestTimesData = [
 ];
 
 const recentActivity = [
-  { text: "New blog post: How we grew...", platform: "Facebook", engagement: "+12.4%", time: "2h ago", trend: "up" },
-  { text: "Coffee + creativity = the...", platform: "Instagram", engagement: "+8.7%", time: "5h ago", trend: "up" },
-  { text: "5 tips for improving your...", platform: "X", engagement: "-2.1%", time: "1d ago", trend: "down" },
-  { text: "Behind the scenes: Our team...", platform: "LinkedIn", engagement: "+15.3%", time: "1d ago", trend: "up" },
+  { text: "Nouveau article blog : Comment grandir...", platform: "Facebook", engagement: "+12.4%", time: "Il y a 2h", trend: "up" },
+  { text: "Cafe + creativite = le combo...", platform: "Instagram", engagement: "+8.7%", time: "Il y a 5h", trend: "up" },
+  { text: "5 astuces pour ameliorer votre...", platform: "Facebook", engagement: "-2.1%", time: "Hier", trend: "down" },
+  { text: "Dans les coulisses : Notre equipe...", platform: "LinkedIn", engagement: "+15.3%", time: "Hier", trend: "up" },
 ];
 
 const stats = [
-  { label: "Total Impressions", value: "35.2K", change: "+12.5%", up: true, icon: Eye, color: "#2563EB" },
+  { label: "Impressions Totales", value: "35.2K", change: "+12.5%", up: true, icon: Eye, color: "#2563EB" },
   { label: "Engagements", value: "2,990", change: "+8.3%", up: true, icon: Heart, color: "#E4405F" },
-  { label: "Link Clicks", value: "1,210", change: "+5.7%", up: true, icon: ArrowUpRight, color: "#10B981" },
-  { label: "New Followers", value: "+847", change: "-2.1%", up: false, icon: Users, color: "#8B5CF6" },
+  { label: "Clics sur Liens", value: "1,210", change: "+5.7%", up: true, icon: ArrowUpRight, color: "#10B981" },
+  { label: "Nouveaux Abonnes", value: "+847", change: "-2.1%", up: false, icon: Users, color: "#8B5CF6" },
 ];
 
 export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
@@ -89,9 +90,9 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
         <div>
-          <h1 className="text-foreground">Dashboard</h1>
+          <h1 className="text-foreground">Tableau de Bord</h1>
           <p style={{ fontSize: 14 }} className="text-muted-foreground mt-0.5">
-            Welcome back! Here's your social media performance overview.
+            Bienvenue ! Voici un apercu de vos performances sur les reseaux sociaux.
           </p>
         </div>
         <button
@@ -99,7 +100,7 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
           className="px-4 py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors flex items-center gap-2"
           style={{ fontSize: 14 }}
         >
-          + New Post
+          + Nouvelle Publication
         </button>
       </div>
 
@@ -142,7 +143,7 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
           <div className="col-span-2 bg-card rounded-xl border border-border p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-foreground">Weekly Performance</h3>
+                <h3 className="text-foreground">Performance Hebdomadaire</h3>
                 <p style={{ fontSize: 13 }} className="text-muted-foreground">
                   Impressions, engagement & clicks
                 </p>
@@ -184,9 +185,9 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
 
           {/* Platform Split */}
           <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="text-foreground mb-1">Platform Breakdown</h3>
+            <h3 className="text-foreground mb-1">Repartition par Plateforme</h3>
             <p style={{ fontSize: 13 }} className="text-muted-foreground mb-4">
-              Engagement by platform
+              Engagement par plateforme
             </p>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
@@ -228,10 +229,10 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
           <div className="bg-card rounded-xl border border-border p-5">
             <div className="flex items-center gap-2 mb-1">
               <Zap size={16} className="text-[#F59E0B]" />
-              <h3 className="text-foreground">Best Times to Post</h3>
+              <h3 className="text-foreground">Meilleurs Horaires</h3>
             </div>
             <p style={{ fontSize: 13 }} className="text-muted-foreground mb-4">
-              Based on engagement scores
+              Basee sur les scores d'engagement
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={bestTimesData}>
@@ -250,9 +251,9 @@ export function DashboardOverview({ onNewPost }: { onNewPost: () => void }) {
           <div className="col-span-2 bg-card rounded-xl border border-border p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-foreground">Recent Activity</h3>
+                <h3 className="text-foreground">Activite Recente</h3>
                 <p style={{ fontSize: 13 }} className="text-muted-foreground">
-                  Latest post performance
+                  Derniere performance des publications
                 </p>
               </div>
             </div>

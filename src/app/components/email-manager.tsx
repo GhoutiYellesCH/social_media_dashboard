@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTokens } from "./token-context";
 
 interface EmailList {
   id: string;
@@ -61,12 +62,12 @@ const emailLists: EmailList[] = [
 ];
 
 const emailCampaigns: EmailCampaign[] = [
-  { id: "1", name: "March Newsletter", subject: "🚀 What's New in SocialQ — March Edition", status: "sent", list: "Weekly Newsletter", sent: 6780, opened: 2854, clicked: 892, openRate: 42.1, clickRate: 13.2, date: "Mar 28, 2026" },
-  { id: "2", name: "Product Launch Announcement", subject: "Introducing AI-Powered Content Suggestions!", status: "sent", list: "Product Updates", sent: 8920, opened: 3051, clicked: 1245, openRate: 34.2, clickRate: 14.0, date: "Mar 22, 2026" },
-  { id: "3", name: "Welcome Sequence — Day 1", subject: "Welcome to SocialQ! Here's how to get started", status: "sent", list: "All Subscribers", sent: 1200, opened: 780, clicked: 456, openRate: 65.0, clickRate: 38.0, date: "Automated" },
-  { id: "4", name: "April Newsletter", subject: "📊 April Insights + New Features Inside", status: "scheduled", list: "Weekly Newsletter", sent: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0, date: "Apr 5, 2026" },
-  { id: "5", name: "Re-engagement Campaign", subject: "We miss you! Here's 20% off to come back", status: "draft", list: "All Subscribers", sent: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0, date: "—" },
-  { id: "6", name: "VIP Exclusive Preview", subject: "You're invited: Exclusive early access to our new feature", status: "sent", list: "VIP Customers", sent: 1230, opened: 697, clicked: 312, openRate: 56.7, clickRate: 25.4, date: "Mar 18, 2026" },
+  { id: "1", name: "March Newsletter", subject: "Nouveautes SocialdZ - Edition Mars", status: "sent", list: "Weekly Newsletter", sent: 6780, opened: 2854, clicked: 892, openRate: 42.1, clickRate: 13.2, date: "28 Mar 2026" },
+  { id: "2", name: "Lancement Tokens IA", subject: "Decouvrez notre systeme de tokens IA !", status: "sent", list: "Product Updates", sent: 8920, opened: 3051, clicked: 1245, openRate: 34.2, clickRate: 14.0, date: "22 Mar 2026" },
+  { id: "3", name: "Sequence Bienvenue - Jour 1", subject: "Bienvenue sur SocialdZ ! Voici comment demarrer", status: "sent", list: "All Subscribers", sent: 1200, opened: 780, clicked: 456, openRate: 65.0, clickRate: 38.0, date: "Automatise" },
+  { id: "4", name: "Newsletter Avril", subject: "Insights Avril + Nouvelles Fonctionnalites", status: "scheduled", list: "Weekly Newsletter", sent: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0, date: "5 Avr 2026" },
+  { id: "5", name: "Campagne Re-engagement", subject: "Vous nous manquez ! -20% pour revenir", status: "draft", list: "All Subscribers", sent: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0, date: "-" },
+  { id: "6", name: "Preview Exclusive VIP", subject: "Invitation : Acces anticipe a notre nouvelle fonctionnalite", status: "sent", list: "VIP Customers", sent: 1230, opened: 697, clicked: 312, openRate: 56.7, clickRate: 25.4, date: "18 Mar 2026" },
 ];
 
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -79,6 +80,7 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 export function EmailManager() {
   const [activeTab, setActiveTab] = useState<"campaigns" | "lists" | "automations">("campaigns");
   const [searchQuery, setSearchQuery] = useState("");
+  const { consumeTokens } = useTokens();
   const [showCompose, setShowCompose] = useState(false);
   const [showAddSubscribers, setShowAddSubscribers] = useState(false);
 

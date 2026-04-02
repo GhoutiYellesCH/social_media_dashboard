@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Bell,
@@ -10,27 +10,31 @@ import {
   ChevronRight,
   Camera,
   Check,
+  Coins,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTokens } from "./token-context";
+import { useAuth } from "./auth-context";
+import * as api from "./api-client";
 
 const tabs = [
-  { icon: User, label: "Profile" },
+  { icon: User, label: "Profil" },
   { icon: Bell, label: "Notifications" },
-  { icon: Shield, label: "Security" },
-  { icon: Palette, label: "Appearance" },
+  { icon: Shield, label: "Securite" },
+  { icon: Palette, label: "Apparence" },
   { icon: Link2, label: "Integrations" },
-  { icon: CreditCard, label: "Billing" },
+  { icon: CreditCard, label: "Facturation" },
 ];
 
 export function SettingsView() {
-  const [activeTab, setActiveTab] = useState("Profile");
+  const [activeTab, setActiveTab] = useState("Profil");
   const [profile, setProfile] = useState({
-    name: "Alex Morgan",
-    email: "alex@acmeinc.com",
-    company: "Acme Inc.",
-    role: "Marketing Manager",
-    timezone: "UTC-5 (Eastern)",
-    language: "English",
+    name: "Utilisateur",
+    email: "",
+    company: "",
+    role: "",
+    timezone: "UTC+1 (Alger)",
+    language: "Francais",
   });
   const [notifications, setNotifications] = useState({
     email: true,
@@ -39,40 +43,58 @@ export function SettingsView() {
     weeklyReport: true,
     teamActivity: false,
     newFollower: false,
+    tokenLow: true,
   });
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
-  const handleSave = () => {
-    toast.success("Settings saved!", { description: "Your changes have been saved successfully." });
+  const { balance, monthlyAllowance, plan, upgradePlan, addTokens } = useTokens();
+  const { user } = useAuth();
+
+  // Load settings from backend
+  useEffect(() => {
+    api.getSettings().then((data) => {
+      if (data && typeof data === "object") {
+        setProfile((prev) => ({ ...prev, ...data }));
+      }
+    }).catch((e) => console.error("Failed to load settings:", e))
+      .finally(() => setLoadingSettings(false));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await api.updateSettings(profile);
+      toast.success("Parametres sauvegardes !", { description: "Vos modifications ont ete enregistrees." });
+    } catch (e: any) {
+      toast.error("Erreur", { description: e.message });
+    }
   };
 
   const renderContent = () => {
     switch (activeTab) {
-      case "Profile":
+      case "Profil":
         return (
           <div className="space-y-6">
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Profile Settings</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Manage your personal information</p>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Parametres du Profil</h3>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Gerez vos informations personnelles</p>
             </div>
-            {/* Avatar */}
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-full bg-[#2563EB] flex items-center justify-center">
-                <span className="text-white" style={{ fontSize: 28, fontWeight: 700 }}>AM</span>
+                <span className="text-white" style={{ fontSize: 28, fontWeight: 700 }}>KB</span>
               </div>
               <div>
                 <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500 }}>
-                  <Camera size={14} /> Change photo
+                  <Camera size={14} /> Changer la photo
                 </button>
                 <p className="text-muted-foreground mt-1" style={{ fontSize: 12 }}>JPG, PNG. Max 2MB</p>
               </div>
             </div>
-            {/* Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
-                { label: "Full name", key: "name" },
+                { label: "Nom complet", key: "name" },
                 { label: "Email", key: "email" },
-                { label: "Company", key: "company" },
-                { label: "Role", key: "role" },
+                { label: "Entreprise", key: "company" },
+                { label: "Poste", key: "role" },
               ].map((field) => (
                 <div key={field.key}>
                   <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>{field.label}</label>
@@ -87,26 +109,26 @@ export function SettingsView() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Timezone</label>
+                <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Fuseau horaire</label>
                 <select className="w-full px-4 py-2.5 rounded-lg border border-border bg-input-background text-foreground" style={{ fontSize: 14 }}>
-                  <option>UTC-5 (Eastern)</option>
-                  <option>UTC-8 (Pacific)</option>
+                  <option>UTC+1 (Alger)</option>
                   <option>UTC+0 (GMT)</option>
-                  <option>UTC+1 (CET)</option>
+                  <option>UTC+1 (CET / Paris)</option>
+                  <option>UTC+2 (Le Caire)</option>
                 </select>
               </div>
               <div>
-                <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Language</label>
+                <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Langue</label>
                 <select className="w-full px-4 py-2.5 rounded-lg border border-border bg-input-background text-foreground" style={{ fontSize: 14 }}>
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>French</option>
-                  <option>German</option>
+                  <option>Francais</option>
+                  <option>Arabe</option>
+                  <option>Anglais</option>
+                  <option>Amazigh</option>
                 </select>
               </div>
             </div>
             <button onClick={handleSave} className="px-6 py-2.5 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 14, fontWeight: 600 }}>
-              Save Changes
+              Sauvegarder
             </button>
           </div>
         );
@@ -115,17 +137,18 @@ export function SettingsView() {
         return (
           <div className="space-y-6">
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Notification Preferences</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Choose what you want to be notified about</p>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Preferences de Notifications</h3>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Choisissez vos alertes</p>
             </div>
             <div className="space-y-4">
               {[
-                { key: "email", label: "Email notifications", desc: "Receive notifications via email" },
-                { key: "push", label: "Push notifications", desc: "Receive browser push notifications" },
-                { key: "postPublished", label: "Post published", desc: "When a scheduled post goes live" },
-                { key: "weeklyReport", label: "Weekly report", desc: "Weekly performance summary" },
-                { key: "teamActivity", label: "Team activity", desc: "When team members make changes" },
-                { key: "newFollower", label: "New followers", desc: "When you gain new followers" },
+                { key: "email", label: "Notifications email", desc: "Recevoir les notifications par email" },
+                { key: "push", label: "Notifications push", desc: "Recevoir les notifications navigateur" },
+                { key: "postPublished", label: "Publication publiee", desc: "Quand une publication programmee est publiee" },
+                { key: "weeklyReport", label: "Rapport hebdomadaire", desc: "Resume de performance chaque semaine" },
+                { key: "teamActivity", label: "Activite de l'equipe", desc: "Quand un membre fait des modifications" },
+                { key: "tokenLow", label: "Solde tokens bas", desc: "Alerte quand vos tokens sont en dessous de 500" },
+                { key: "newFollower", label: "Nouveaux abonnes", desc: "Quand vous gagnez de nouveaux abonnes" },
               ].map((item) => (
                 <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
@@ -142,79 +165,79 @@ export function SettingsView() {
               ))}
             </div>
             <button onClick={handleSave} className="px-6 py-2.5 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 14, fontWeight: 600 }}>
-              Save Preferences
+              Sauvegarder les Preferences
             </button>
           </div>
         );
 
-      case "Security":
+      case "Securite":
         return (
           <div className="space-y-6">
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Security Settings</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Manage your account security</p>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Parametres de Securite</h3>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Gerez la securite de votre compte</p>
             </div>
             <div className="space-y-4">
               <div className="p-4 rounded-xl border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 500 }}>Change password</p>
-                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Last changed 30 days ago</p>
+                    <p style={{ fontSize: 14, fontWeight: 500 }}>Changer le mot de passe</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Derniere modification il y a 30 jours</p>
                   </div>
-                  <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Update</button>
+                  <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Modifier</button>
                 </div>
               </div>
               <div className="p-4 rounded-xl border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 500 }}>Two-factor authentication</p>
-                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Add an extra layer of security</p>
+                    <p style={{ fontSize: 14, fontWeight: 500 }}>Authentification a deux facteurs</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Ajoutez une couche de securite supplementaire</p>
                   </div>
-                  <button className="px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Enable</button>
+                  <button className="px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Activer</button>
                 </div>
               </div>
               <div className="p-4 rounded-xl border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 500 }}>Active sessions</p>
-                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>2 devices currently signed in</p>
+                    <p style={{ fontSize: 14, fontWeight: 500 }}>Sessions actives</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>2 appareils actuellement connectes</p>
                   </div>
-                  <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Manage</button>
+                  <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Gerer</button>
                 </div>
               </div>
               <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 500 }} className="text-destructive">Delete account</p>
-                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Permanently delete your account and all data</p>
+                    <p style={{ fontSize: 14, fontWeight: 500 }} className="text-destructive">Supprimer le compte</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Supprimer definitivement votre compte et toutes les donnees</p>
                   </div>
-                  <button className="px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Delete</button>
+                  <button className="px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Supprimer</button>
                 </div>
               </div>
             </div>
           </div>
         );
 
-      case "Appearance":
+      case "Apparence":
         return (
           <div className="space-y-6">
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Appearance</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Customize the look of your dashboard</p>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Apparence</h3>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Personnalisez l'apparence de votre tableau de bord</p>
             </div>
             <div>
               <p style={{ fontSize: 14, fontWeight: 500 }} className="mb-3">Theme</p>
               <div className="grid grid-cols-3 gap-3">
-                {["Light", "Dark", "System"].map((theme) => (
+                {["Clair", "Sombre", "Systeme"].map((theme) => (
                   <button key={theme} className="p-4 rounded-xl border border-border hover:border-[#2563EB] transition-colors text-center">
-                    <div className={`w-full h-16 rounded-lg mb-2 ${theme === "Dark" ? "bg-gray-800" : theme === "System" ? "bg-gradient-to-r from-white to-gray-800" : "bg-gray-100"} border border-border`} />
+                    <div className={`w-full h-16 rounded-lg mb-2 ${theme === "Sombre" ? "bg-gray-800" : theme === "Systeme" ? "bg-gradient-to-r from-white to-gray-800" : "bg-gray-100"} border border-border`} />
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{theme}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500 }} className="mb-3">Accent color</p>
+              <p style={{ fontSize: 14, fontWeight: 500 }} className="mb-3">Couleur d'accent</p>
               <div className="flex gap-3">
                 {["#2563EB", "#7C3AED", "#059669", "#DC2626", "#EA580C", "#0891B2"].map((color) => (
                   <button
@@ -235,14 +258,14 @@ export function SettingsView() {
           <div className="space-y-6">
             <div>
               <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Integrations</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Connect third-party tools and services</p>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Connectez vos outils et services</p>
             </div>
             {[
-              { name: "Canva", desc: "Design images and graphics", connected: true },
-              { name: "Google Analytics", desc: "Track website traffic from posts", connected: true },
-              { name: "Slack", desc: "Get notifications in Slack", connected: false },
-              { name: "Zapier", desc: "Automate workflows", connected: false },
-              { name: "Dropbox", desc: "Access media files", connected: false },
+              { name: "Canva", desc: "Creez des visuels et graphiques", connected: true },
+              { name: "Google Analytics", desc: "Suivez le trafic depuis vos publications", connected: true },
+              { name: "WhatsApp Business", desc: "Integrez vos conversations WhatsApp", connected: false },
+              { name: "Shopify", desc: "Connectez votre boutique e-commerce", connected: false },
+              { name: "CIB / Dahabia", desc: "Paiement electronique algerien", connected: true },
             ].map((integration) => (
               <div key={integration.name} className="flex items-center justify-between p-4 rounded-xl border border-border">
                 <div className="flex items-center gap-3">
@@ -255,45 +278,78 @@ export function SettingsView() {
                   </div>
                 </div>
                 <button className={`px-4 py-2 rounded-lg transition-colors ${integration.connected ? "border border-green-500 text-green-600" : "border border-border hover:bg-accent"}`} style={{ fontSize: 13, fontWeight: 500 }}>
-                  {integration.connected ? "Connected" : "Connect"}
+                  {integration.connected ? "Connecte" : "Connecter"}
                 </button>
               </div>
             ))}
           </div>
         );
 
-      case "Billing":
+      case "Facturation":
         return (
           <div className="space-y-6">
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Billing & Subscription</h3>
-              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Manage your plan and payment methods</p>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }} className="mb-1">Facturation & Abonnement</h3>
+              <p className="text-muted-foreground" style={{ fontSize: 14 }}>Gerez votre forfait, vos tokens et vos paiements</p>
             </div>
+            {/* Current plan */}
             <div className="p-6 rounded-xl border border-[#2563EB] bg-[#2563EB]/5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-[#2563EB]" style={{ fontSize: 13, fontWeight: 600 }}>CURRENT PLAN</p>
-                  <p style={{ fontSize: 24, fontWeight: 700 }} className="mt-1">Professional</p>
+                  <p className="text-[#2563EB]" style={{ fontSize: 13, fontWeight: 600 }}>FORFAIT ACTUEL</p>
+                  <p style={{ fontSize: 24, fontWeight: 700 }} className="mt-1">{plan}</p>
                 </div>
-                <span style={{ fontSize: 32, fontWeight: 800 }}>$29<span className="text-muted-foreground" style={{ fontSize: 14, fontWeight: 400 }}>/mo</span></span>
+                <span style={{ fontSize: 32, fontWeight: 800 }}>4 900<span className="text-muted-foreground" style={{ fontSize: 14, fontWeight: 400 }}> DZD/mois</span></span>
               </div>
               <div className="flex gap-3">
-                <button className="px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Upgrade Plan</button>
-                <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Cancel Subscription</button>
+                <button className="px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Upgrader le Forfait</button>
+                <button className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors" style={{ fontSize: 13, fontWeight: 500 }}>Annuler l'Abonnement</button>
               </div>
             </div>
+
+            {/* Token balance */}
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <div className="flex items-center gap-2 mb-3">
+                <Coins size={18} className="text-[#2563EB]" />
+                <p style={{ fontSize: 16, fontWeight: 600 }}>Solde Tokens IA</p>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 28, fontWeight: 700 }}>{balance.toLocaleString()}</span>
+                <span className="text-muted-foreground" style={{ fontSize: 13 }}>sur {monthlyAllowance.toLocaleString()} / mois</span>
+              </div>
+              <div className="w-full h-3 bg-accent rounded-full mb-3">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(5, (balance / monthlyAllowance) * 100)}%`,
+                    backgroundColor: balance < 500 ? "#DC2626" : balance < 1500 ? "#F59E0B" : "#2563EB",
+                  }}
+                />
+              </div>
+              <p className="text-muted-foreground" style={{ fontSize: 13 }}>
+                Renouvellement automatique chaque mois. Tokens supplementaires disponibles a l'achat.
+              </p>
+              <button className="mt-3 px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors flex items-center gap-2" style={{ fontSize: 13, fontWeight: 600 }}>
+                <Coins size={14} /> Acheter des Tokens
+              </button>
+            </div>
+
+            {/* Payment */}
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500 }} className="mb-3">Payment method</p>
+              <p style={{ fontSize: 14, fontWeight: 500 }} className="mb-3">Moyen de paiement</p>
               <div className="p-4 rounded-xl border border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CreditCard size={20} className="text-muted-foreground" />
                   <div>
-                    <p style={{ fontSize: 14 }}>•••• •••• •••• 4242</p>
-                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Expires 12/2027</p>
+                    <p style={{ fontSize: 14 }}>CIB / Dahabia •••• 8742</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 13 }}>Expire 06/2028</p>
                   </div>
                 </div>
-                <button className="text-[#2563EB] hover:underline" style={{ fontSize: 13 }}>Edit</button>
+                <button className="text-[#2563EB] hover:underline" style={{ fontSize: 13 }}>Modifier</button>
               </div>
+              <p className="text-muted-foreground mt-2" style={{ fontSize: 12 }}>
+                Nous acceptons CIB, Dahabia, et les cartes internationales (Visa, Mastercard).
+              </p>
             </div>
           </div>
         );
@@ -306,11 +362,10 @@ export function SettingsView() {
   return (
     <main className="flex-1 h-screen overflow-y-auto bg-background">
       <div className="max-w-5xl mx-auto p-8">
-        <h1 style={{ fontSize: 28, fontWeight: 700 }} className="mb-1">Settings</h1>
-        <p className="text-muted-foreground mb-8" style={{ fontSize: 14 }}>Manage your account and preferences</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }} className="mb-1">Parametres</h1>
+        <p className="text-muted-foreground mb-8" style={{ fontSize: 14 }}>Gerez votre compte et vos preferences</p>
 
         <div className="flex gap-8">
-          {/* Settings nav */}
           <div className="w-48 shrink-0 space-y-1">
             {tabs.map((tab) => (
               <button
@@ -324,7 +379,6 @@ export function SettingsView() {
             ))}
           </div>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
             {renderContent()}
           </div>

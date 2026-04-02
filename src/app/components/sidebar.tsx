@@ -22,31 +22,33 @@ import {
   ExternalLink,
   FolderOpen,
   Inbox,
+  Coins,
 } from "lucide-react";
+import { useTokens } from "./token-context";
 
 const mainNav = [
-  { icon: LayoutDashboard, label: "Dashboard" },
-  { icon: CalendarDays, label: "Content Calendar" },
-  { icon: PenSquare, label: "Post Composer" },
-  { icon: BarChart3, label: "Analytics" },
-  { icon: Users, label: "Accounts" },
+  { icon: LayoutDashboard, label: "Tableau de Bord" },
+  { icon: CalendarDays, label: "Calendrier" },
+  { icon: PenSquare, label: "Composer" },
+  { icon: BarChart3, label: "Analytiques" },
+  { icon: Users, label: "Comptes" },
 ];
 
 const marketingNav = [
   { icon: Megaphone, label: "Ads Manager" },
-  { icon: BookOpen, label: "Blog Manager" },
+  { icon: BookOpen, label: "Blog" },
   { icon: Mail, label: "Email Marketing" },
-  { icon: GitBranch, label: "Sales Funnels" },
+  { icon: GitBranch, label: "Funnels" },
   { icon: Link2, label: "Link-in-Bio" },
   { icon: ExternalLink, label: "UTM Builder" },
-  { icon: Hash, label: "Hashtag Research" },
+  { icon: Hash, label: "Hashtags" },
 ];
 
 const accounts = [
   { platform: "Facebook", color: "#1877F2" },
   { platform: "Instagram", color: "#E4405F" },
+  { platform: "TikTok", color: "#000000" },
   { platform: "LinkedIn", color: "#0A66C2" },
-  { platform: "X", color: "#000000" },
 ];
 
 export function Sidebar({
@@ -65,6 +67,9 @@ export function Sidebar({
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
+  const { balance, monthlyAllowance, plan } = useTokens();
+
+  const usagePercent = Math.round(((monthlyAllowance - balance) / monthlyAllowance) * 100);
 
   const NavButton = ({ icon: Icon, label }: { icon: typeof LayoutDashboard; label: string }) => {
     const isActive = activeNav === label;
@@ -87,10 +92,40 @@ export function Sidebar({
       <div className="px-5 py-5 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
-            <span className="text-white" style={{ fontSize: 14, fontWeight: 700 }}>S</span>
+            <span className="text-white" style={{ fontSize: 12, fontWeight: 700 }}>dZ</span>
           </div>
-          <span style={{ fontSize: 18, fontWeight: 700 }} className="text-foreground">SocialQ</span>
+          <span style={{ fontSize: 18, fontWeight: 700 }} className="text-foreground">SocialdZ</span>
+          <span className="px-1.5 py-0.5 rounded text-[#2563EB] bg-[#2563EB]/10" style={{ fontSize: 9, fontWeight: 700 }}>BETA</span>
         </div>
+      </div>
+
+      {/* Token Balance */}
+      <div className="px-4 py-3 border-b border-border">
+        <button
+          onClick={() => onNavChange("Tokens")}
+          className="w-full p-2.5 rounded-xl bg-gradient-to-r from-[#2563EB]/5 to-purple-500/5 border border-[#2563EB]/20 hover:border-[#2563EB]/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <Coins size={14} className="text-[#2563EB]" />
+              <span style={{ fontSize: 11, fontWeight: 600 }} className="text-[#2563EB]">Tokens IA</span>
+            </div>
+            <span style={{ fontSize: 11 }} className="text-muted-foreground">{plan}</span>
+          </div>
+          <div className="flex items-center justify-between mb-1">
+            <span style={{ fontSize: 16, fontWeight: 700 }}>{balance.toLocaleString()}</span>
+            <span className="text-muted-foreground" style={{ fontSize: 10 }}>/ {monthlyAllowance.toLocaleString()}</span>
+          </div>
+          <div className="w-full h-1.5 bg-accent rounded-full">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.max(5, 100 - usagePercent)}%`,
+                backgroundColor: balance < 500 ? "#DC2626" : balance < 1500 ? "#F59E0B" : "#2563EB",
+              }}
+            />
+          </div>
+        </button>
       </div>
 
       {/* Navigation */}
@@ -99,7 +134,7 @@ export function Sidebar({
           <NavButton key={item.label} icon={item.icon} label={item.label} />
         ))}
 
-        {/* Marketing Tools Section */}
+        {/* Marketing Section */}
         <div className="pt-4">
           <button
             onClick={() => setMarketingOpen(!marketingOpen)}
@@ -140,8 +175,8 @@ export function Sidebar({
             <div className="space-y-1 mt-1">
               <NavButton icon={Inbox} label="Inbox" />
               <NavButton icon={Ear} label="Social Listening" />
-              <NavButton icon={UserCog} label="Team" />
-              <NavButton icon={FolderOpen} label="Content Library" />
+              <NavButton icon={UserCog} label="Equipe" />
+              <NavButton icon={FolderOpen} label="Mediatheque" />
             </div>
           )}
         </div>
@@ -153,7 +188,7 @@ export function Sidebar({
             className="w-full flex items-center justify-between px-3 py-2 text-muted-foreground"
           >
             <span style={{ fontSize: 12, fontWeight: 600 }} className="uppercase tracking-wider">
-              Connected Accounts
+              Comptes Connectes
             </span>
             <ChevronDown
               size={14}
@@ -183,15 +218,15 @@ export function Sidebar({
         >
           <div className="flex items-center gap-3">
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            <span style={{ fontSize: 14 }}>{darkMode ? "Light Mode" : "Dark Mode"}</span>
+            <span style={{ fontSize: 14 }}>{darkMode ? "Mode Clair" : "Mode Sombre"}</span>
           </div>
           <div className={`w-9 h-5 rounded-full relative transition-colors ${darkMode ? "bg-[#2563EB]" : "bg-switch-background"}`}>
             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${darkMode ? "translate-x-4" : "translate-x-0.5"}`} />
           </div>
         </button>
 
-        <NavButton icon={Settings} label="Settings" />
-        <NavButton icon={HelpCircle} label="Help & Support" />
+        <NavButton icon={Settings} label="Parametres" />
+        <NavButton icon={HelpCircle} label="Aide" />
 
         {onLogout && (
           <button
@@ -199,7 +234,7 @@ export function Sidebar({
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
           >
             <LogOut size={18} />
-            <span style={{ fontSize: 14 }}>Log Out</span>
+            <span style={{ fontSize: 14 }}>Deconnexion</span>
           </button>
         )}
       </div>

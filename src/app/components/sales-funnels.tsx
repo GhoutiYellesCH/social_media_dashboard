@@ -192,7 +192,7 @@ export function SalesFunnels() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Revenue", value: `$${(totalRevenue / 1000).toFixed(1)}K`, icon: DollarSign, change: "+18.3%" },
+            { label: "Total Revenue", value: `${(totalRevenue / 1000).toFixed(1)}K DZD`, icon: DollarSign, change: "+18.3%" },
             { label: "Total Visitors", value: `${(totalVisitors / 1000).toFixed(1)}K`, icon: Eye, change: "+12.7%" },
             { label: "Conversions", value: totalConversions.toLocaleString(), icon: MousePointerClick, change: "+24.5%" },
             { label: "Active Funnels", value: funnels.filter((f) => f.status === "active").length.toString(), icon: Layers, change: "" },

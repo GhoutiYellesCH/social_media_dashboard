@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useTokens } from "./token-context";
 
 interface Conversation {
   id: string;
@@ -122,6 +123,7 @@ export function InboxManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [replyText, setReplyText] = useState("");
   const [convos, setConvos] = useState(conversations);
+  const tokenCtx = useTokens();
 
   const unreadCount = convos.filter((c) => c.unread).length;
 
@@ -291,8 +293,15 @@ export function InboxManager() {
             <div className="flex items-center gap-3 mt-2">
               <span className="text-muted-foreground" style={{ fontSize: 11 }}>Replying on {selectedConvo.platform}</span>
               <span className="text-muted-foreground" style={{ fontSize: 11 }}>·</span>
-              <button className="text-[#2563EB] hover:underline" style={{ fontSize: 11 }} onClick={() => toast.info("Canned responses")}>Use template</button>
-              <button className="text-[#2563EB] hover:underline" style={{ fontSize: 11 }} onClick={() => toast.info("AI assist")}>AI assist</button>
+              <button className="text-[#2563EB] hover:underline" style={{ fontSize: 11 }} onClick={() => toast.info("Reponses pre-enregistrees")}>Template</button>
+              <button className="text-[#2563EB] hover:underline" style={{ fontSize: 11 }} onClick={async () => {
+                const success = await tokenCtx.consumeTokens(10, "Reponse IA inbox", "Inbox");
+                if (success) {
+                  toast.success("Reponse IA generee ! 10 tokens utilises.");
+                } else {
+                  toast.error("Tokens insuffisants");
+                }
+              }}>IA Assist (10 tokens)</button>
             </div>
           </div>
         </div>

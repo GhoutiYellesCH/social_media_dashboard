@@ -48,20 +48,20 @@ interface ApprovalItem {
 }
 
 const teamMembers: TeamMember[] = [
-  { id: "1", name: "Alex Morgan", email: "alex@acmeinc.com", role: "owner", avatar: "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0JTIwYnVzaW5lc3N8ZW58MXx8fHwxNzc1MDcxMjc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral", status: "active", lastActive: "Just now", postsApproved: 145, postsCreated: 89 },
-  { id: "2", name: "Sarah Chen", email: "sarah@acmeinc.com", role: "admin", avatar: "", status: "active", lastActive: "5m ago", postsApproved: 78, postsCreated: 156 },
-  { id: "3", name: "Marcus Johnson", email: "marcus@acmeinc.com", role: "editor", avatar: "", status: "active", lastActive: "2h ago", postsApproved: 0, postsCreated: 234 },
-  { id: "4", name: "Emily Rodriguez", email: "emily@acmeinc.com", role: "editor", avatar: "", status: "active", lastActive: "1d ago", postsApproved: 0, postsCreated: 67 },
-  { id: "5", name: "David Kim", email: "david@acmeinc.com", role: "viewer", avatar: "", status: "active", lastActive: "3h ago", postsApproved: 0, postsCreated: 0 },
-  { id: "6", name: "Lisa Thompson", email: "lisa@freelance.com", role: "editor", avatar: "", status: "pending", lastActive: "—", postsApproved: 0, postsCreated: 0 },
+  { id: "1", name: "Karim Benali", email: "karim@acmedz.com", role: "owner", avatar: "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0JTIwYnVzaW5lc3N8ZW58MXx8fHwxNzc1MDcxMjc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral", status: "active", lastActive: "A l'instant", postsApproved: 145, postsCreated: 89 },
+  { id: "2", name: "Amira Hadj", email: "amira@acmedz.com", role: "admin", avatar: "", status: "active", lastActive: "Il y a 5m", postsApproved: 78, postsCreated: 156 },
+  { id: "3", name: "Yacine Boumediene", email: "yacine@acmedz.com", role: "editor", avatar: "", status: "active", lastActive: "Il y a 2h", postsApproved: 0, postsCreated: 234 },
+  { id: "4", name: "Nadia Cherif", email: "nadia@acmedz.com", role: "editor", avatar: "", status: "active", lastActive: "Hier", postsApproved: 0, postsCreated: 67 },
+  { id: "5", name: "Omar Mesbah", email: "omar@acmedz.com", role: "viewer", avatar: "", status: "active", lastActive: "Il y a 3h", postsApproved: 0, postsCreated: 0 },
+  { id: "6", name: "Lina Bouzid", email: "lina@freelance.dz", role: "editor", avatar: "", status: "pending", lastActive: "-", postsApproved: 0, postsCreated: 0 },
 ];
 
 const approvals: ApprovalItem[] = [
-  { id: "1", author: "Marcus Johnson", content: "New product showcase video — launching our spring collection with behind-the-scenes footage!", platform: "Instagram, Facebook", scheduledDate: "Apr 3, 2026 at 10:00 AM", status: "pending", submittedAt: "1h ago" },
-  { id: "2", author: "Emily Rodriguez", content: "Blog post: 5 Ways to Boost Your LinkedIn Engagement in 2026. Detailed guide with actionable tips.", platform: "LinkedIn, X", scheduledDate: "Apr 4, 2026 at 2:00 PM", status: "pending", submittedAt: "3h ago" },
-  { id: "3", author: "Marcus Johnson", content: "Customer testimonial spotlight featuring @happyclient. Great review of our Q1 results.", platform: "Facebook, LinkedIn", scheduledDate: "Apr 5, 2026 at 9:00 AM", status: "pending", submittedAt: "5h ago" },
-  { id: "4", author: "Emily Rodriguez", content: "Flash sale announcement - 40% off all annual plans this weekend only!", platform: "All Platforms", scheduledDate: "Apr 2, 2026 at 12:00 PM", status: "approved", submittedAt: "1d ago" },
-  { id: "5", author: "Marcus Johnson", content: "Meme Monday: When the client says 'make it pop' for the 100th time...", platform: "Instagram, X", scheduledDate: "Apr 7, 2026 at 8:00 AM", status: "rejected", submittedAt: "2d ago" },
+  { id: "1", author: "Yacine Boumediene", content: "Video showcase nouveau produit - lancement de notre collection printemps avec des images en coulisses !", platform: "Instagram, Facebook", scheduledDate: "3 Avr 2026 a 10:00", status: "pending", submittedAt: "Il y a 1h" },
+  { id: "2", author: "Nadia Cherif", content: "Article : 5 facons de booster votre engagement LinkedIn en 2026. Guide detaille avec conseils actionnables.", platform: "LinkedIn, Facebook", scheduledDate: "4 Avr 2026 a 14:00", status: "pending", submittedAt: "Il y a 3h" },
+  { id: "3", author: "Yacine Boumediene", content: "Temoignage client spotlight avec @clientheureux. Super avis sur nos resultats Q1.", platform: "Facebook, LinkedIn", scheduledDate: "5 Avr 2026 a 9:00", status: "pending", submittedAt: "Il y a 5h" },
+  { id: "4", author: "Nadia Cherif", content: "Annonce vente flash - 40% de reduction sur tous les forfaits annuels ce weekend !", platform: "Toutes les plateformes", scheduledDate: "2 Avr 2026 a 12:00", status: "approved", submittedAt: "Hier" },
+  { id: "5", author: "Yacine Boumediene", content: "Meme du Lundi : Quand le client dit 'faites-le ressortir' pour la 100eme fois...", platform: "Instagram, Facebook", scheduledDate: "7 Avr 2026 a 8:00", status: "rejected", submittedAt: "Il y a 2j" },
 ];
 
 const roleConfig = {

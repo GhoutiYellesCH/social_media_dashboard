@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useTokens } from "./token-context";
 
 interface BlogPost {
   id: string;
@@ -159,13 +160,14 @@ const statusColors: Record<string, { bg: string; text: string; label: string }> 
 };
 
 export function BlogManager() {
-  const [view, setView] = useState<"list" | "editor">("list");
+  const [activeTab, setActiveTab] = useState<"posts" | "editor">("posts");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [editorContent, setEditorContent] = useState("");
   const [editorTitle, setEditorTitle] = useState("");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const { consumeTokens, balance } = useTokens();
 
   const filteredPosts = blogPosts.filter((p) => {
     if (selectedFilter !== "all" && p.status !== selectedFilter) return false;
@@ -186,37 +188,37 @@ export function BlogManager() {
       setEditorTitle("");
       setEditorContent("");
     }
-    setView("editor");
+    setActiveTab("editor");
   };
 
-  if (view === "editor") {
+  if (activeTab === "editor") {
     return (
       <main className="flex-1 h-screen overflow-hidden bg-background flex flex-col">
         {/* Editor header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => setView("list")} className="p-2 rounded-lg hover:bg-accent transition-colors">
+            <button onClick={() => setActiveTab("posts")} className="p-2 rounded-lg hover:bg-accent transition-colors">
               <ArrowLeft size={18} />
             </button>
             <span className="text-muted-foreground" style={{ fontSize: 13 }}>{editingPost ? "Editing" : "New Post"}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { toast.success("Draft saved!"); setView("list"); }}
+              onClick={() => { toast.success("Draft saved!"); setActiveTab("posts"); }}
               className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
               style={{ fontSize: 13, fontWeight: 500 }}
             >
               Save Draft
             </button>
             <button
-              onClick={() => { toast.success("Post scheduled!"); setView("list"); }}
+              onClick={() => { toast.success("Post scheduled!"); setActiveTab("posts"); }}
               className="px-4 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
               style={{ fontSize: 13, fontWeight: 500 }}
             >
               Schedule
             </button>
             <button
-              onClick={() => { toast.success("Post published!"); setView("list"); }}
+              onClick={() => { toast.success("Post published!"); setActiveTab("posts"); }}
               className="px-4 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors"
               style={{ fontSize: 13, fontWeight: 600 }}
             >
@@ -278,8 +280,15 @@ export function BlogManager() {
                   )
                 )}
                 <div className="ml-auto">
-                  <button className="px-3 py-1.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] hover:bg-[#2563EB]/20 transition-colors flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 600 }}>
-                    <Sparkles size={14} /> AI Assist
+                  <button onClick={async () => {
+                    const success = await consumeTokens(25, "Redaction article blog", "Blog");
+                    if (success) {
+                      toast.success("Contenu généré ! 25 tokens utilisés.");
+                    } else {
+                      toast.error("Tokens insuffisants", { description: "Il vous faut 25 tokens." });
+                    }
+                  }} className="px-3 py-1.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] hover:bg-[#2563EB]/20 transition-colors flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 600 }}>
+                    <Sparkles size={14} /> IA Assist (25 tokens)
                   </button>
                 </div>
               </div>
@@ -287,7 +296,7 @@ export function BlogManager() {
               <textarea
                 value={editorContent}
                 onChange={(e) => setEditorContent(e.target.value)}
-                placeholder="Start writing your blog post... Use the toolbar above for formatting or try AI Assist to generate content."
+                placeholder="Commencez à rédiger votre article... Utilisez la barre d'outils ci-dessus ou essayez l'IA Assist pour générer du contenu."
                 className="w-full min-h-[400px] bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none resize-none"
                 style={{ fontSize: 16, lineHeight: 1.8 }}
               />

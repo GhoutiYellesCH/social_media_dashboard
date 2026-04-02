@@ -21,10 +21,14 @@ import { HashtagResearch } from "./components/hashtag-research";
 import { UtmBuilder } from "./components/utm-builder";
 import { ContentLibrary } from "./components/content-library";
 import { InboxManager } from "./components/inbox-manager";
+import { TokenProvider } from "./components/token-context";
+import { TokenDashboard } from "./components/token-dashboard";
+import { AuthProvider, useAuth } from "./components/auth-context";
 import { addDays, startOfWeek, format } from "date-fns";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Toaster, toast } from "sonner";
+import * as apiClient from "./components/api-client";
 
 const today = new Date();
 const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -32,7 +36,7 @@ const weekStart = startOfWeek(today, { weekStartsOn: 1 });
 const initialPosts: ScheduledPost[] = [
   {
     id: "1",
-    content: "Excited to announce our new product line! Stay tuned for the big reveal this Friday",
+    content: "Decouvrez notre nouvelle collection printemps ! Restez a l'ecoute pour la grande revelation ce vendredi",
     time: "9:00 AM",
     platforms: ["Facebook", "Instagram"],
     image: "https://images.unsplash.com/photo-1732310141503-32bdab8eca11?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9kdWN0JTIwbGF1bmNoJTIwY29sb3JmdWx8ZW58MXx8fHwxNzc1MTM4MzE3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
@@ -41,15 +45,15 @@ const initialPosts: ScheduledPost[] = [
   },
   {
     id: "2",
-    content: "Monday motivation: The best way to predict the future is to create it.",
+    content: "Motivation du lundi : La meilleure facon de predire l'avenir est de le creer.",
     time: "12:00 PM",
-    platforms: ["X", "LinkedIn"],
+    platforms: ["Facebook", "LinkedIn"],
     status: "scheduled",
     date: addDays(weekStart, 0),
   },
   {
     id: "3",
-    content: "Behind the scenes: Our team brainstorming session for Q3 campaigns",
+    content: "Dans les coulisses : Seance de brainstorming de notre equipe pour les campagnes Q3",
     time: "10:30 AM",
     platforms: ["Instagram", "Facebook"],
     image: "https://images.unsplash.com/photo-1630672790237-38eeb57cb60b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwbWVldGluZyUyMG9mZmljZXxlbnwxfHx8fDE3NzUwOTQyMTZ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
@@ -58,15 +62,15 @@ const initialPosts: ScheduledPost[] = [
   },
   {
     id: "4",
-    content: "5 tips for improving your social media engagement this quarter. Thread",
+    content: "5 astuces pour ameliorer votre engagement sur les reseaux sociaux ce trimestre",
     time: "2:00 PM",
-    platforms: ["X"],
+    platforms: ["Facebook"],
     status: "draft",
     date: addDays(weekStart, 2),
   },
   {
     id: "5",
-    content: "Coffee + creativity = the perfect Wednesday combo",
+    content: "Cafe + creativite = le combo parfait du mercredi",
     time: "8:00 AM",
     platforms: ["Instagram"],
     image: "https://images.unsplash.com/photo-1548123325-525b8e0cde7c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjB3b3Jrc3BhY2UlMjBhZXN0aGV0aWN8ZW58MXx8fHwxNzc1MTM4MzE2fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
@@ -75,15 +79,15 @@ const initialPosts: ScheduledPost[] = [
   },
   {
     id: "6",
-    content: "New blog post: How we grew our audience by 300% in 6 months. Link in bio!",
+    content: "Nouveau article : Comment nous avons fait grandir notre audience de 300% en 6 mois. Lien en bio !",
     time: "11:00 AM",
-    platforms: ["Facebook", "LinkedIn", "X"],
+    platforms: ["Facebook", "LinkedIn"],
     status: "scheduled",
     date: addDays(weekStart, 3),
   },
   {
     id: "7",
-    content: "Weekend vibes! What are your plans?",
+    content: "Ambiance weekend ! Quels sont vos plans ?",
     time: "5:00 PM",
     platforms: ["Instagram", "Facebook"],
     image: "https://images.unsplash.com/photo-1596905738125-a6b51b1bdbb6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW5zZXQlMjBuYXR1cmUlMjBsYW5kc2NhcGV8ZW58MXx8fHwxNzc1MTM4MzE3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
@@ -92,7 +96,7 @@ const initialPosts: ScheduledPost[] = [
   },
   {
     id: "8",
-    content: "Throwback to our amazing team lunch last week!",
+    content: "Souvenir de notre super dejeuner d'equipe la semaine derniere !",
     time: "1:00 PM",
     platforms: ["Instagram"],
     image: "https://images.unsplash.com/photo-1667118399331-c6d546acee11?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmb29kJTIwcmVzdGF1cmFudCUyMGJydW5jaHxlbnwxfHx8fDE3NzUxMzgzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
@@ -101,32 +105,38 @@ const initialPosts: ScheduledPost[] = [
   },
   {
     id: "9",
-    content: "Join us for a live Q&A session this Saturday at 3PM EST! Drop your questions below",
+    content: "Rejoignez-nous pour une session Q&R en direct ce samedi a 15h ! Posez vos questions ci-dessous",
     time: "3:00 PM",
-    platforms: ["Facebook", "Instagram", "LinkedIn", "X"],
+    platforms: ["Facebook", "Instagram", "LinkedIn"],
     status: "scheduled",
     date: addDays(weekStart, 5),
   },
   {
     id: "10",
-    content: "Sunday reading list: Our top 10 marketing resources for 2026",
+    content: "Liste de lecture du dimanche : Nos 10 meilleures ressources marketing pour 2026",
     time: "10:00 AM",
-    platforms: ["LinkedIn", "X"],
+    platforms: ["LinkedIn", "Facebook"],
     status: "scheduled",
     date: addDays(weekStart, 6),
   },
 ];
 
-type AppPage = "landing" | "login" | "dashboard";
-
-export default function App() {
-  const [page, setPage] = useState<AppPage>("landing");
-  const [activeNav, setActiveNav] = useState("Dashboard");
+function AppInner() {
+  const { user, isAuthenticated, isLoading: authLoading, login, signup, logout } = useAuth();
+  const [page, setPage] = useState<"landing" | "login" | "dashboard">("landing");
+  const [activeNav, setActiveNav] = useState("Tableau de Bord");
   const [showModal, setShowModal] = useState(false);
   const [posts, setPosts] = useState<ScheduledPost[]>(initialPosts);
   const [darkMode, setDarkMode] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
-  // Apply dark class to root
+  // If user is already authenticated, go to dashboard
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      setPage("dashboard");
+    }
+  }, [authLoading, isAuthenticated]);
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -135,7 +145,22 @@ export default function App() {
     }
   }, [darkMode]);
 
-  const handleNewPost = (data: any) => {
+  // Load posts from backend when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiClient.getPosts().then((serverPosts) => {
+        if (serverPosts && Array.isArray(serverPosts) && serverPosts.length > 0) {
+          const parsed = serverPosts.map((p: any) => ({
+            ...p,
+            date: new Date(p.date),
+          }));
+          setPosts(parsed);
+        }
+      }).catch((e) => console.error("Failed to load posts:", e));
+    }
+  }, [isAuthenticated]);
+
+  const handleNewPost = async (data: any) => {
     const platforms = Object.entries(data.networks || {})
       .filter(([, v]) => v)
       .map(([k]) => k.charAt(0).toUpperCase() + k.slice(1));
@@ -145,7 +170,7 @@ export default function App() {
 
     const newPost: ScheduledPost = {
       id: String(Date.now()),
-      content: data.content || "New post",
+      content: data.content || "Nouvelle publication",
       time: data.time || "9:00 AM",
       platforms,
       status: isPublishNow ? "published" : isQueued ? "draft" : "scheduled",
@@ -153,17 +178,25 @@ export default function App() {
     };
     setPosts((prev) => [...prev, newPost]);
 
+    // Save to backend
+    if (isAuthenticated) {
+      apiClient.createPost({
+        ...newPost,
+        date: newPost.date.toISOString(),
+      }).catch((e) => console.error("Failed to save post:", e));
+    }
+
     if (isPublishNow) {
-      toast.success("Post published!", {
-        description: `Your post has been published to ${platforms.join(", ")}.`,
+      toast.success("Publication publiee !", {
+        description: `Votre publication a ete publiee sur ${platforms.join(", ")}.`,
       });
     } else if (isQueued) {
-      toast.success("Added to queue", {
-        description: `Your post has been added to the queue for ${platforms.join(", ")}.`,
+      toast.success("Ajoutee a la file d'attente", {
+        description: `Votre publication a ete ajoutee pour ${platforms.join(", ")}.`,
       });
     } else {
-      toast.success("Post scheduled!", {
-        description: `Scheduled for ${data.date ? format(new Date(data.date), "MMM d, yyyy") : "today"} at ${data.time || "9:00 AM"} on ${platforms.join(", ")}.`,
+      toast.success("Publication programmee !", {
+        description: `Programmee pour le ${data.date ? format(new Date(data.date), "d MMM yyyy") : "aujourd'hui"} a ${data.time || "9:00 AM"} sur ${platforms.join(", ")}.`,
       });
     }
   };
@@ -180,9 +213,15 @@ export default function App() {
           post.date.getDate() === newDate.getDate();
         if (isSame) return prev;
 
+        // Update backend
+        if (isAuthenticated) {
+          apiClient.updatePost(postId, { date: newDate.toISOString() })
+            .catch((e) => console.error("Failed to update post:", e));
+        }
+
         setTimeout(() => {
-          toast.success("Post rescheduled!", {
-            description: `"${post.content.substring(0, 40)}..." moved to ${format(newDate, "EEEE, MMM d")}.`,
+          toast.success("Publication reprogrammee !", {
+            description: `"${post.content.substring(0, 40)}..." deplacee au ${format(newDate, "EEEE d MMM")}.`,
           });
         }, 0);
 
@@ -191,17 +230,58 @@ export default function App() {
         );
       });
     },
-    []
+    [isAuthenticated]
   );
 
-  const handleLogout = () => {
-    setPage("landing");
-    setActiveNav("Dashboard");
-    toast.success("Logged out successfully!");
+  const handleLogin = async (email: string, password: string) => {
+    setLoginError("");
+    const result = await login(email, password);
+    if (result.success) {
+      setPage("dashboard");
+      toast.success("Bon retour !", { description: "Vous etes connecte a SocialdZ." });
+    } else {
+      setLoginError(result.error || "Erreur de connexion");
+      toast.error("Echec de connexion", { description: result.error });
+    }
+    return result;
   };
 
+  const handleSignup = async (email: string, password: string, name: string) => {
+    setLoginError("");
+    const result = await signup(email, password, name);
+    if (result.success) {
+      setPage("dashboard");
+      toast.success("Compte cree !", { description: "Bienvenue sur SocialdZ ! 500 tokens IA offerts." });
+    } else {
+      setLoginError(result.error || "Erreur d'inscription");
+      toast.error("Echec d'inscription", { description: result.error });
+    }
+    return result;
+  };
+
+  const handleLogout = () => {
+    logout();
+    setPage("landing");
+    setActiveNav("Tableau de Bord");
+    toast.success("Deconnexion reussie !");
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen w-screen bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-xl bg-[#2563EB] flex items-center justify-center mx-auto mb-4">
+            <span className="text-white" style={{ fontSize: 16, fontWeight: 700 }}>dZ</span>
+          </div>
+          <p className="text-muted-foreground" style={{ fontSize: 14 }}>Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Landing page
-  if (page === "landing") {
+  if (page === "landing" && !isAuthenticated) {
     return (
       <>
         <LandingPage
@@ -214,19 +294,14 @@ export default function App() {
   }
 
   // Login page
-  if (page === "login") {
+  if (page === "login" && !isAuthenticated) {
     return (
       <>
         <LoginPage
-          onLogin={() => {
-            setPage("dashboard");
-            toast.success("Welcome back!", { description: "You've successfully signed in to SocialQ." });
-          }}
+          onLogin={handleLogin}
           onBack={() => setPage("landing")}
-          onSignUp={() => {
-            setPage("dashboard");
-            toast.success("Account created!", { description: "Welcome to SocialQ! Your free trial has started." });
-          }}
+          onSignUp={handleSignup}
+          error={loginError}
         />
         <Toaster position="bottom-right" richColors closeButton />
       </>
@@ -235,9 +310,9 @@ export default function App() {
 
   const renderView = () => {
     switch (activeNav) {
-      case "Dashboard":
+      case "Tableau de Bord":
         return <DashboardOverview onNewPost={() => setShowModal(true)} />;
-      case "Content Calendar":
+      case "Calendrier":
         return (
           <WeeklyCalendar
             posts={posts}
@@ -245,70 +320,82 @@ export default function App() {
             onMovePost={handleMovePost}
           />
         );
-      case "Post Composer":
+      case "Composer":
         return <PostComposer onSubmit={handleNewPost} />;
-      case "Analytics":
+      case "Analytiques":
         return <AnalyticsView />;
-      case "Accounts":
+      case "Comptes":
         return <AccountsView />;
-      case "Settings":
+      case "Parametres":
         return <SettingsView />;
-      case "Help & Support":
+      case "Aide":
         return <HelpSupportView />;
       case "Ads Manager":
         return <AdsManager />;
-      case "Blog Manager":
+      case "Blog":
         return <BlogManager />;
       case "Email Marketing":
         return <EmailManager />;
-      case "Sales Funnels":
+      case "Funnels":
         return <SalesFunnels />;
       case "Link-in-Bio":
         return <LinkInBio />;
       case "UTM Builder":
         return <UtmBuilder />;
-      case "Hashtag Research":
+      case "Hashtags":
         return <HashtagResearch />;
       case "Inbox":
         return <InboxManager />;
       case "Social Listening":
         return <SocialListening />;
-      case "Team":
+      case "Equipe":
         return <TeamPermissions />;
-      case "Content Library":
+      case "Mediatheque":
         return <ContentLibrary />;
+      case "Tokens":
+        return <TokenDashboard />;
       default:
         return <DashboardOverview onNewPost={() => setShowModal(true)} />;
     }
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="flex h-screen w-screen overflow-hidden bg-background">
-        <Sidebar
-          activeNav={activeNav}
-          onNavChange={setActiveNav}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode((d) => !d)}
-          onLogout={handleLogout}
-        />
-        {renderView()}
-        {showModal && (
-          <NewPostModal onClose={() => setShowModal(false)} onSubmit={handleNewPost} />
-        )}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              borderRadius: "12px",
-              fontSize: "13px",
-            },
-          }}
-          theme={darkMode ? "dark" : "light"}
-          richColors
-          closeButton
-        />
-      </div>
-    </DndProvider>
+    <TokenProvider>
+      <DndProvider backend={HTML5Backend}>
+        <div className="flex h-screen w-screen overflow-hidden bg-background">
+          <Sidebar
+            activeNav={activeNav}
+            onNavChange={setActiveNav}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode((d) => !d)}
+            onLogout={handleLogout}
+          />
+          {renderView()}
+          {showModal && (
+            <NewPostModal onClose={() => setShowModal(false)} onSubmit={handleNewPost} />
+          )}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                borderRadius: "12px",
+                fontSize: "13px",
+              },
+            }}
+            theme={darkMode ? "dark" : "light"}
+            richColors
+            closeButton
+          />
+        </div>
+      </DndProvider>
+    </TokenProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }

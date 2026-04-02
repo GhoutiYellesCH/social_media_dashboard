@@ -40,14 +40,14 @@ interface Mention {
 }
 
 const mentions: Mention[] = [
-  { id: "1", platform: "X", platformColor: "#000", author: "Sarah Digital", avatar: "", content: "Just switched to @SocialQ for our social media management and it's been a game-changer! The scheduling features are incredible. Highly recommend!", sentiment: "positive", engagement: 234, date: "2h ago", reach: 12400, type: "mention" },
-  { id: "2", platform: "Instagram", platformColor: "#E4405F", author: "MarketingPro", avatar: "", content: "Using SocialQ's analytics to track our campaign performance. The insights are really detailed and actionable.", sentiment: "positive", engagement: 567, date: "4h ago", reach: 34200, type: "mention" },
-  { id: "3", platform: "LinkedIn", platformColor: "#0A66C2", author: "Tech Review Blog", avatar: "", content: "We tested 10 social media management tools for our 2026 roundup. SocialQ landed in our top 3 for small businesses but could improve on reporting.", sentiment: "neutral", engagement: 1230, date: "6h ago", reach: 89000, type: "news" },
-  { id: "4", platform: "Facebook", platformColor: "#1877F2", author: "Jane Cooper", avatar: "", content: "Having trouble connecting my Instagram business account to SocialQ. The support team hasn't responded in 2 days. Frustrating.", sentiment: "negative", engagement: 45, date: "8h ago", reach: 890, type: "comment" },
-  { id: "5", platform: "X", platformColor: "#000", author: "StartupWeekly", avatar: "", content: "New comparison: SocialQ vs Buffer vs Hootsuite for 2026. Which one is right for your team? Thread 🧵", sentiment: "neutral", engagement: 890, date: "12h ago", reach: 56700, type: "news" },
-  { id: "6", platform: "Instagram", platformColor: "#E4405F", author: "CreativeAgency", avatar: "", content: "Our team loves the new AI content suggestions in SocialQ! Makes brainstorming so much faster 🚀", sentiment: "positive", engagement: 345, date: "1d ago", reach: 18900, type: "mention" },
-  { id: "7", platform: "Facebook", platformColor: "#1877F2", author: "Digital Nomad Hub", avatar: "", content: "SocialQ has become an essential tool for our remote marketing team. The collaboration features are top-notch!", sentiment: "positive", engagement: 678, date: "1d ago", reach: 23400, type: "review" },
-  { id: "8", platform: "X", platformColor: "#000", author: "SaaS Critic", avatar: "", content: "SocialQ pricing increased again. Third time this year. They're pricing out small businesses. Not cool.", sentiment: "negative", engagement: 123, date: "1d ago", reach: 7800, type: "mention" },
+  { id: "1", platform: "Facebook", platformColor: "#1877F2", author: "Amira Digital", avatar: "", content: "Je viens de passer a @SocialdZ pour notre gestion des reseaux sociaux et c'est un game-changer ! Les fonctionnalites de programmation sont incroyables.", sentiment: "positive", engagement: 234, date: "Il y a 2h", reach: 12400, type: "mention" },
+  { id: "2", platform: "Instagram", platformColor: "#E4405F", author: "MarketingDZ", avatar: "", content: "On utilise les analytiques de SocialdZ pour suivre nos campagnes. Les insights sont vraiment detailles et actionnables.", sentiment: "positive", engagement: 567, date: "Il y a 4h", reach: 34200, type: "mention" },
+  { id: "3", platform: "LinkedIn", platformColor: "#0A66C2", author: "Tech Review Algerie", avatar: "", content: "Nous avons teste 10 outils de gestion social media pour notre classement 2026. SocialdZ est dans notre top 3 pour les PME algeriennes.", sentiment: "neutral", engagement: 1230, date: "Il y a 6h", reach: 89000, type: "news" },
+  { id: "4", platform: "Facebook", platformColor: "#1877F2", author: "Yacine Mesbah", avatar: "", content: "J'ai des difficultes a connecter mon compte Instagram Business a SocialdZ. Le support n'a pas repondu en 2 jours.", sentiment: "negative", engagement: 45, date: "Il y a 8h", reach: 890, type: "comment" },
+  { id: "5", platform: "Facebook", platformColor: "#1877F2", author: "StartupDZ Weekly", avatar: "", content: "Nouveau comparatif : SocialdZ vs Buffer vs Hootsuite pour 2026. Lequel est fait pour votre equipe ? Discussion", sentiment: "neutral", engagement: 890, date: "Il y a 12h", reach: 56700, type: "news" },
+  { id: "6", platform: "Instagram", platformColor: "#E4405F", author: "Agence Creative Oran", avatar: "", content: "Notre equipe adore les suggestions de contenu IA de SocialdZ ! Le systeme de tokens est super flexible", sentiment: "positive", engagement: 345, date: "Hier", reach: 18900, type: "mention" },
+  { id: "7", platform: "Facebook", platformColor: "#1877F2", author: "Digital Hub Constantine", avatar: "", content: "SocialdZ est devenu un outil essentiel pour notre equipe marketing. Les fonctionnalites de collaboration sont top !", sentiment: "positive", engagement: 678, date: "Hier", reach: 23400, type: "review" },
+  { id: "8", platform: "Facebook", platformColor: "#1877F2", author: "SaaS Critique DZ", avatar: "", content: "Le prix des tokens de SocialdZ reste tres competitif par rapport aux concurrents internationaux. Bon rapport qualite-prix.", sentiment: "positive", engagement: 123, date: "Hier", reach: 7800, type: "mention" },
 ];
 
 const sentimentConfig = {
@@ -57,7 +57,7 @@ const sentimentConfig = {
 };
 
 const competitors = [
-  { name: "SocialQ", mentions: 1245, sentiment: 78, share: 34 },
+  { name: "SocialdZ", mentions: 1245, sentiment: 78, share: 34 },
   { name: "Buffer", mentions: 890, sentiment: 72, share: 24 },
   { name: "Hootsuite", mentions: 1120, sentiment: 65, share: 30 },
   { name: "Sprout Social", mentions: 445, sentiment: 81, share: 12 },

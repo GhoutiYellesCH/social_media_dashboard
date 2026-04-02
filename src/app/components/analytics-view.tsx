@@ -60,12 +60,12 @@ const topPosts = [
   { content: "Weekend vibes photo series", impressions: 6900, engagement: "15.4%", platform: "Instagram" },
 ];
 
-const platformColors: Record<string, string> = {
-  Facebook: "#1877F2",
-  Instagram: "#E4405F",
-  LinkedIn: "#0A66C2",
-  X: "#14171A",
-};
+const platformData = [
+  { name: "Facebook", value: 35, color: "#1877F2" },
+  { name: "Instagram", value: 30, color: "#E4405F" },
+  { name: "TikTok", value: 20, color: "#000000" },
+  { name: "LinkedIn", value: 15, color: "#0A66C2" },
+];
 
 export function AnalyticsView() {
   const [selectedRange, setSelectedRange] = useState("12 Months");
@@ -216,7 +216,7 @@ export function AnalyticsView() {
                   <td className="py-3">
                     <span
                       className="px-2 py-0.5 rounded-full text-white"
-                      style={{ fontSize: 11, fontWeight: 600, backgroundColor: platformColors[post.platform] }}
+                      style={{ fontSize: 11, fontWeight: 600, backgroundColor: platformData.find(p => p.name === post.platform)?.color }}
                     >
                       {post.platform}
                     </span>

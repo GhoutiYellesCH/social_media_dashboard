@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTokens } from "./token-context";
 
 interface Hashtag {
   id: string;
@@ -67,6 +68,7 @@ export function HashtagResearch() {
   const [sortBy, setSortBy] = useState<"posts" | "engagement" | "trend">("trend");
   const [hashtagList, setHashtagList] = useState(hashtags);
   const [activeTab, setActiveTab] = useState<"research" | "saved" | "generator">("research");
+  const { balance, consumeTokens } = useTokens();
 
   const filtered = hashtagList
     .filter((h) => {
@@ -231,8 +233,8 @@ export function HashtagResearch() {
                 <Sparkles size={20} className="text-[#2563EB]" />
                 <h3 style={{ fontSize: 16, fontWeight: 600 }}>AI Hashtag Generator</h3>
               </div>
-              <p className="text-muted-foreground mb-4" style={{ fontSize: 13 }}>Describe your post content and we'll suggest the best hashtags for maximum reach and engagement.</p>
-              <textarea placeholder="Describe your post content... e.g., 'Behind the scenes of our product photoshoot for spring collection'" rows={4} className="w-full px-4 py-3 rounded-lg border border-border bg-input-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 resize-none mb-3" style={{ fontSize: 14 }} />
+              <p className="text-muted-foreground mb-4" style={{ fontSize: 13 }}>Decrivez le contenu de votre publication et nous suggererons les meilleurs hashtags pour maximiser votre portee.</p>
+              <textarea placeholder="Decrivez le contenu de votre publication... ex: 'Coulisses de notre shooting photo produit pour la collection printemps'" rows={4} className="w-full px-4 py-3 rounded-lg border border-border bg-input-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 resize-none mb-3" style={{ fontSize: 14 }} />
               <div className="flex items-center gap-3 mb-4">
                 <select className="px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" style={{ fontSize: 13 }}>
                   <option>Instagram</option>
@@ -245,8 +247,15 @@ export function HashtagResearch() {
                   <option>High reach only</option>
                   <option>Niche only</option>
                 </select>
-                <button onClick={() => toast.success("Hashtags generated!")} className="px-5 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors flex items-center gap-2" style={{ fontSize: 13, fontWeight: 600 }}>
-                  <Sparkles size={14} /> Generate
+                <button onClick={async () => {
+                  const success = await consumeTokens(8, "Suggestions hashtags IA", "Hashtags");
+                  if (success) {
+                    toast.success("Hashtags generes ! 8 tokens utilises.");
+                  } else {
+                    toast.error("Tokens insuffisants", { description: "Il vous faut 8 tokens." });
+                  }
+                }} className="px-5 py-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors flex items-center gap-2" style={{ fontSize: 13, fontWeight: 600 }}>
+                  <Sparkles size={14} /> Generer (8 tokens)
                 </button>
               </div>
 

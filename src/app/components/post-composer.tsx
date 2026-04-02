@@ -19,7 +19,10 @@ import {
   Heart,
   MessageCircle,
   Share2,
+  Coins,
 } from "lucide-react";
+import { useTokens } from "./token-context";
+import { toast } from "sonner";
 
 const networks = [
   { id: "facebook", label: "Facebook", icon: Facebook, color: "#1877F2" },
@@ -29,12 +32,12 @@ const networks = [
 ];
 
 const aiSuggestions = [
-  "Check out our latest product launch! We've been working hard to bring you something truly special.",
-  "We're thrilled to share our Q3 results. Our team's dedication continues to drive growth and innovation.",
-  "Save the date! Our upcoming webinar will cover the latest trends in digital marketing for 2026.",
+  "Decouvrez notre derniere nouveaute ! Nous avons travaille dur pour vous apporter quelque chose de vraiment special.",
+  "Nous sommes ravis de partager nos resultats du T3. L'engagement de notre equipe continue de porter ses fruits.",
+  "Reservez la date ! Notre prochain webinaire couvrira les dernieres tendances du marketing digital en 2026.",
 ];
 
-const hashtags = ["#SocialMedia", "#Marketing", "#DigitalMarketing", "#ContentCreation", "#BrandGrowth", "#Engagement"];
+const hashtags = ["#ReseauxSociaux", "#Marketing", "#Algerie", "#ContentCreation", "#DigitalDZ", "#Engagement"];
 
 export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
   const [content, setContent] = useState("");
@@ -49,6 +52,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("09:00");
+  const { balance, consumeTokens } = useTokens();
 
   const toggleNetwork = (id: string) => {
     setSelectedNetworks((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -64,14 +68,14 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
         <div>
-          <h1 className="text-foreground">Post Composer</h1>
+          <h1 className="text-foreground">Composer une Publication</h1>
           <p style={{ fontSize: 14 }} className="text-muted-foreground mt-0.5">
-            Create and preview your post across platforms
+            Creez et previsualiser votre publication sur toutes les plateformes
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button className="px-4 py-2 border border-border rounded-lg text-muted-foreground hover:bg-accent transition-colors" style={{ fontSize: 14 }}>
-            Save Draft
+            Brouillon
           </button>
           <button
             onClick={() =>
@@ -87,7 +91,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
             className="px-4 py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors"
             style={{ fontSize: 14 }}
           >
-            Schedule Post
+            Programmer
           </button>
         </div>
       </div>
@@ -98,7 +102,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
           {/* Platform Selection */}
           <div className="bg-card rounded-xl border border-border p-5">
             <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground mb-3 block">
-              Publish to
+              Publier sur
             </label>
             <div className="flex gap-2 flex-wrap">
               {networks.map((net) => {
@@ -128,26 +132,44 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
           <div className="bg-card rounded-xl border border-border p-5">
             <div className="flex items-center justify-between mb-3">
               <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground">
-                Content
+                Contenu
               </label>
               <button
-                onClick={() => setShowAiPanel(!showAiPanel)}
+                onClick={() => {
+                  if (!showAiPanel) {
+                    if (balance < 15) {
+                      toast.error("Tokens insuffisants", { description: "Il vous faut 15 tokens pour l'assistance IA." });
+                      return;
+                    }
+                  }
+                  setShowAiPanel(!showAiPanel);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:opacity-90 transition-opacity"
                 style={{ fontSize: 12 }}
               >
                 <Sparkles size={13} />
-                AI Assist
+                IA Assist
+                <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20" style={{ fontSize: 10 }}>15 <Coins size={8} className="inline" /></span>
               </button>
             </div>
 
             {showAiPanel && (
               <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100">
-                <p style={{ fontSize: 12, fontWeight: 600 }} className="text-purple-700 mb-2">AI Suggestions</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p style={{ fontSize: 12, fontWeight: 600 }} className="text-purple-700">Suggestions IA</p>
+                  <span className="text-purple-500 flex items-center gap-1" style={{ fontSize: 11 }}><Coins size={10} /> 15 tokens par suggestion</span>
+                </div>
                 <div className="space-y-2">
                   {aiSuggestions.map((s, i) => (
                     <button
                       key={i}
-                      onClick={() => setContent(s)}
+                      onClick={async () => {
+                        const success = await consumeTokens(15, "Generation de contenu IA", "Post Composer");
+                        if (success) {
+                          setContent(s);
+                          toast.success("Contenu genere !", { description: "15 tokens utilises." });
+                        }
+                      }}
                       className="w-full text-left p-3 bg-white rounded-lg border border-purple-100 hover:border-purple-300 transition-colors"
                       style={{ fontSize: 13 }}
                     >
@@ -161,7 +183,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="What would you like to share?"
+              placeholder="Qu'aimeriez-vous partager ?"
               className="w-full h-40 p-4 border border-border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] bg-accent/50 text-foreground placeholder:text-muted-foreground/60"
               style={{ fontSize: 14 }}
             />
@@ -198,7 +220,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
 
           {/* Media */}
           <div className="bg-card rounded-xl border border-border p-5">
-            <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground mb-3 block">Media</label>
+            <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground mb-3 block">Medias</label>
             <div
               onClick={() => setUploadedFiles((prev) => [...prev, `media-${prev.length + 1}.jpg`])}
               className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-[#2563EB]/40 transition-colors bg-accent/50"
@@ -208,9 +230,9 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
                   <Upload size={20} className="text-[#2563EB]" />
                 </div>
                 <p style={{ fontSize: 13 }}>
-                  <span className="text-[#2563EB]" style={{ fontWeight: 600 }}>Click to upload</span> or drag and drop
+                  <span className="text-[#2563EB]" style={{ fontWeight: 600 }}>Cliquez pour importer</span> ou glissez-deposez
                 </p>
-                <p style={{ fontSize: 12 }} className="text-muted-foreground">PNG, JPG, GIF, MP4 up to 50MB</p>
+                <p style={{ fontSize: 12 }} className="text-muted-foreground">PNG, JPG, GIF, MP4 jusqu'a 50MB</p>
               </div>
             </div>
             {uploadedFiles.length > 0 && (
@@ -230,7 +252,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
 
           {/* Schedule */}
           <div className="bg-card rounded-xl border border-border p-5">
-            <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground mb-3 block">Schedule</label>
+            <label style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground mb-3 block">Programmation</label>
             <div className="flex gap-3">
               <div className="flex-1 relative">
                 <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -261,7 +283,7 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Eye size={16} className="text-muted-foreground" />
-              <span style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground">Preview</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground">Apercu</span>
             </div>
             <select
               value={preview}
@@ -283,14 +305,14 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
                 <span className="text-white" style={{ fontSize: 14, fontWeight: 700 }}>A</span>
               </div>
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground">Acme Inc.</p>
-                <p style={{ fontSize: 11 }} className="text-muted-foreground">Just now · Public</p>
+                <p style={{ fontSize: 13, fontWeight: 600 }} className="text-foreground">Acme DZ</p>
+                <p style={{ fontSize: 11 }} className="text-muted-foreground">A l'instant · Public</p>
               </div>
             </div>
             {/* Post Content */}
             <div className="p-3">
               <p style={{ fontSize: 13, lineHeight: 1.5 }} className="text-foreground whitespace-pre-wrap">
-                {content || "Your post preview will appear here..."}
+                {content || "L'apercu de votre publication apparaitra ici..."}
               </p>
             </div>
             {uploadedFiles.length > 0 && (
@@ -300,11 +322,11 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
             )}
             {/* Post Actions */}
             <div className="p-3 border-t border-border flex items-center justify-around">
-              {["Like", "Comment", "Share"].map((action) => (
+              {["J'aime", "Commenter", "Partager"].map((action) => (
                 <button key={action} className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 12 }}>
-                  {action === "Like" && <Heart size={14} />}
-                  {action === "Comment" && <MessageCircle size={14} />}
-                  {action === "Share" && <Share2 size={14} />}
+                  {action === "J'aime" && <Heart size={14} />}
+                  {action === "Commenter" && <MessageCircle size={14} />}
+                  {action === "Partager" && <Share2 size={14} />}
                   {action}
                 </button>
               ))}
@@ -314,12 +336,12 @@ export function PostComposer({ onSubmit }: { onSubmit: (data: any) => void }) {
           {/* Platform tips */}
           <div className="mt-5 p-4 bg-blue-50 rounded-xl">
             <p style={{ fontSize: 12, fontWeight: 600 }} className="text-blue-700 mb-1">
-              {preview === "instagram" ? "Instagram Tips" : preview === "x" ? "X Tips" : preview === "linkedin" ? "LinkedIn Tips" : "Facebook Tips"}
+              {preview === "instagram" ? "Conseils Instagram" : preview === "x" ? "Conseils X" : preview === "linkedin" ? "Conseils LinkedIn" : "Conseils Facebook"}
             </p>
             <ul className="space-y-1">
-              <li style={{ fontSize: 12 }} className="text-blue-600">• Use 3-5 relevant hashtags for better reach</li>
-              <li style={{ fontSize: 12 }} className="text-blue-600">• Posts with images get 2.3x more engagement</li>
-              <li style={{ fontSize: 12 }} className="text-blue-600">• Best posting time: 10AM - 12PM</li>
+              <li style={{ fontSize: 12 }} className="text-blue-600">• Utilisez 3-5 hashtags pertinents</li>
+              <li style={{ fontSize: 12 }} className="text-blue-600">• Les posts avec images ont 2.3x plus d'engagement</li>
+              <li style={{ fontSize: 12 }} className="text-blue-600">• Meilleur horaire : 10h - 12h (heure d'Alger)</li>
             </ul>
           </div>
         </div>

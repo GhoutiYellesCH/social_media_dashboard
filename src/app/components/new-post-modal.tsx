@@ -90,7 +90,7 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
       <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-[620px] max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-foreground">Create New Post</h2>
+          <h2 className="text-foreground">Nouvelle Publication</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors text-muted-foreground"
@@ -104,7 +104,7 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
           {/* Platform Toggles */}
           <div>
             <label style={{ fontSize: 13 }} className="text-muted-foreground mb-2 block">
-              Publish to
+              Publier sur
             </label>
             <div className="flex gap-2 flex-wrap">
               {networks.map((net) => {
@@ -159,7 +159,7 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="What would you like to share?"
+                placeholder="Qu'aimeriez-vous partager ?"
                 className="w-full h-32 p-4 border border-border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] bg-accent/50 text-foreground placeholder:text-muted-foreground/60"
                 style={{ fontSize: 14 }}
               />
@@ -250,7 +250,7 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
                   }`}
                   style={{ fontSize: 13 }}
                 >
-                  {type === "now" ? "Share Now" : type === "schedule" ? "Schedule" : "Add to Queue"}
+                  {type === "now" ? "Publier" : type === "schedule" ? "Programmer" : "File d'attente"}
                 </button>
               ))}
             </div>
@@ -288,7 +288,7 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
             className="px-4 py-2 border border-border rounded-lg text-muted-foreground hover:bg-accent transition-colors"
             style={{ fontSize: 14 }}
           >
-            Cancel
+            Annuler
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -297,10 +297,10 @@ export function NewPostModal({ onClose, onSubmit }: { onClose: () => void; onSub
               style={{ fontSize: 14 }}
             >
               {scheduleType === "now"
-                ? "Share Now"
+                ? "Publier Maintenant"
                 : scheduleType === "schedule"
-                ? "Schedule Post"
-                : "Add to Queue"}
+                ? "Programmer"
+                : "Ajouter a la File"}
               <ChevronDown size={14} />
             </button>
           </div>

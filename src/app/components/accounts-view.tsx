@@ -33,8 +33,8 @@ const accounts: Account[] = [
   {
     id: "1",
     platform: "Facebook",
-    name: "Acme Inc.",
-    handle: "@acmeinc",
+    name: "Acme DZ",
+    handle: "@acmedz",
     avatar: "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0JTIwYnVzaW5lc3N8ZW58MXx8fHwxNzc1MDcxMjc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     connected: true,
     followers: "24.5K",
@@ -45,8 +45,8 @@ const accounts: Account[] = [
   {
     id: "2",
     platform: "Instagram",
-    name: "Acme Inc.",
-    handle: "@acme.inc",
+    name: "Acme DZ",
+    handle: "@acme.dz",
     avatar: "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0JTIwYnVzaW5lc3N8ZW58MXx8fHwxNzc1MDcxMjc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     connected: true,
     followers: "31.2K",
@@ -57,8 +57,8 @@ const accounts: Account[] = [
   {
     id: "3",
     platform: "LinkedIn",
-    name: "Acme Inc.",
-    handle: "acme-inc",
+    name: "Acme DZ",
+    handle: "acme-dz",
     avatar: "https://images.unsplash.com/photo-1623594675959-02360202d4d6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwc21pbGV8ZW58MXx8fHwxNzc1MDY0OTM4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     connected: true,
     followers: "8.7K",
@@ -69,8 +69,8 @@ const accounts: Account[] = [
   {
     id: "4",
     platform: "X",
-    name: "Acme Inc.",
-    handle: "@acmeinc",
+    name: "Acme DZ",
+    handle: "@acmedz",
     avatar: "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0JTIwYnVzaW5lc3N8ZW58MXx8fHwxNzc1MDcxMjc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     connected: true,
     followers: "15.9K",
@@ -81,10 +81,10 @@ const accounts: Account[] = [
 ];
 
 const availablePlatforms = [
-  { name: "Pinterest", color: "#E60023", icon: "P" },
   { name: "TikTok", color: "#000", icon: "T" },
   { name: "YouTube", color: "#FF0000", icon: "Y" },
   { name: "Threads", color: "#000", icon: "@" },
+  { name: "WhatsApp", color: "#25D366", icon: "W" },
 ];
 
 const platformIcons: Record<string, any> = {
@@ -108,21 +108,21 @@ export function AccountsView() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
         <div>
-          <h1 className="text-foreground">Accounts</h1>
+          <h1 className="text-foreground">Comptes</h1>
           <p style={{ fontSize: 14 }} className="text-muted-foreground mt-0.5">
-            Manage your connected social media accounts
+            Gerez vos comptes de reseaux sociaux connectes
           </p>
         </div>
         <button className="px-4 py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors flex items-center gap-2" style={{ fontSize: 14 }}>
           <Plus size={16} />
-          Connect Account
+          Connecter un Compte
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-accent/20 p-6 space-y-6">
         {/* Connected Accounts */}
         <div>
-          <h3 className="text-foreground mb-4">Connected Accounts</h3>
+          <h3 className="text-foreground mb-4">Comptes Connectes</h3>
           <div className="grid grid-cols-2 gap-4">
             {accounts.map((account) => {
               const PlatformIcon = platformIcons[account.platform];
@@ -211,7 +211,7 @@ export function AccountsView() {
 
         {/* Add More Platforms */}
         <div>
-          <h3 className="text-foreground mb-4">Available Platforms</h3>
+          <h3 className="text-foreground mb-4">Plateformes Disponibles</h3>
           <div className="grid grid-cols-4 gap-4">
             {availablePlatforms.map((p) => (
               <button
@@ -225,7 +225,7 @@ export function AccountsView() {
                   <span className="text-white" style={{ fontSize: 18, fontWeight: 700 }}>{p.icon}</span>
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 600 }} className="text-foreground mb-1">{p.name}</p>
-                <p style={{ fontSize: 12 }} className="text-muted-foreground">Click to connect</p>
+                <p style={{ fontSize: 12 }} className="text-muted-foreground">Cliquez pour connecter</p>
               </button>
             ))}
           </div>
