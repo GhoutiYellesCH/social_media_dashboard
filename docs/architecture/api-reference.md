@@ -40,9 +40,31 @@ Required headers:
 - `PUT /posts/:id`
 - `DELETE /posts/:id`
 
+Posts validation contract:
+- Allowed status values: `draft`, `scheduled`, `published`
+- Allowed platforms: `Facebook`, `Instagram`, `LinkedIn`, `X`, `TikTok`, `YouTube`
+- `POST /posts` requires:
+	- `content` (string, non-empty, max 5000 chars)
+	- `platforms` (non-empty array of allowed platform values)
+	- Optional `status`, `time`, `image`, `date` (ISO date string)
+- `PUT /posts/:id` accepts only:
+	- `content`, `status`, `time`, `image`, `date`, `platforms`
+	- `id` path parameter must be present and <= 128 chars
+- Invalid payloads return `400`
+
 ### Settings
 - `GET /settings`
 - `PUT /settings`
+
+Settings validation contract:
+- Allowed fields only: `name`, `email`, `company`, `role`, `timezone`, `language`
+- `PUT /settings` rules:
+	- payload must be a non-empty JSON object
+	- all values must be strings
+	- unknown fields are rejected with `400`
+	- `email` must be valid when provided and non-empty
+	- max lengths: `name` 120, `email` 254, `company` 120, `role` 120, `timezone` 100, `language` 50
+- `GET /settings` returns sanitized settings (allowed fields only)
 
 ### Accounts
 - `GET /accounts`

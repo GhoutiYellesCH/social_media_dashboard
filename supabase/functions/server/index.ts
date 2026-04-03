@@ -104,6 +104,196 @@ const PLAN_TOKENS: Record<string, number> = {
   Entreprise: 20000,
 };
 
+const POST_STATUSES = new Set(["scheduled", "published", "draft"]);
+const SUPPORTED_PLATFORMS = new Set(["Facebook", "Instagram", "LinkedIn", "X", "TikTok", "YouTube"]);
+
+function isIsoDateString(value: unknown) {
+  if (typeof value !== "string") return false;
+  const parsed = Date.parse(value);
+  return !Number.isNaN(parsed);
+}
+
+function normalizePlatforms(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const unique = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const platform = item.trim();
+    if (SUPPORTED_PLATFORMS.has(platform)) unique.add(platform);
+  }
+  return Array.from(unique);
+}
+
+function validatePostCreatePayload(input: any): { ok: true; value: any } | { ok: false; error: string } {
+  if (!input || typeof input !== "object") {
+    return { ok: false, error: "Payload publication invalide." };
+  }
+
+  const content = typeof input.content === "string" ? input.content.trim() : "";
+  if (!content) {
+    return { ok: false, error: "Le contenu de la publication est requis." };
+  }
+  if (content.length > 5000) {
+    return { ok: false, error: "Le contenu depasse la limite autorisee (5000 caracteres)." };
+  }
+
+  const status = typeof input.status === "string" ? input.status : "draft";
+  if (!POST_STATUSES.has(status)) {
+    return { ok: false, error: "Statut de publication invalide." };
+  }
+
+  const date = input.date;
+  if (date !== undefined && !isIsoDateString(date)) {
+    return { ok: false, error: "Date de publication invalide." };
+  }
+
+  const time = typeof input.time === "string" ? input.time.trim() : "";
+  if (time && time.length > 30) {
+    return { ok: false, error: "Heure de publication invalide." };
+  }
+
+  const platforms = normalizePlatforms(input.platforms);
+  if (platforms.length === 0) {
+    return { ok: false, error: "Au moins une plateforme valide est requise." };
+  }
+
+  const image = typeof input.image === "string" ? input.image.trim() : undefined;
+
+  return {
+    ok: true,
+    value: {
+      content,
+      time,
+      platforms,
+      status,
+      image,
+      date: date || new Date().toISOString(),
+    },
+  };
+}
+
+function validatePostUpdatePayload(input: any): { ok: true; value: any } | { ok: false; error: string } {
+  if (!input || typeof input !== "object") {
+    return { ok: false, error: "Payload de mise a jour invalide." };
+  }
+
+  const updates: Record<string, unknown> = {};
+
+  if ("content" in input) {
+    if (typeof input.content !== "string" || !input.content.trim()) {
+      return { ok: false, error: "Contenu invalide." };
+    }
+    if (input.content.trim().length > 5000) {
+      return { ok: false, error: "Le contenu depasse la limite autorisee (5000 caracteres)." };
+    }
+    updates.content = input.content.trim();
+  }
+
+  if ("status" in input) {
+    if (typeof input.status !== "string" || !POST_STATUSES.has(input.status)) {
+      return { ok: false, error: "Statut de publication invalide." };
+    }
+    updates.status = input.status;
+  }
+
+  if ("time" in input) {
+    if (typeof input.time !== "string" || input.time.trim().length > 30) {
+      return { ok: false, error: "Heure de publication invalide." };
+    }
+    updates.time = input.time.trim();
+  }
+
+  if ("date" in input) {
+    if (!isIsoDateString(input.date)) {
+      return { ok: false, error: "Date de publication invalide." };
+    }
+    updates.date = input.date;
+  }
+
+  if ("platforms" in input) {
+    const platforms = normalizePlatforms(input.platforms);
+    if (platforms.length === 0) {
+      return { ok: false, error: "Au moins une plateforme valide est requise." };
+    }
+    updates.platforms = platforms;
+  }
+
+  if ("image" in input) {
+    if (input.image !== null && typeof input.image !== "string") {
+      return { ok: false, error: "Image invalide." };
+    }
+    updates.image = input.image === null ? undefined : input.image.trim();
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { ok: false, error: "Aucune propriete de mise a jour valide fournie." };
+  }
+
+  return { ok: true, value: updates };
+}
+
+const SETTINGS_ALLOWED_KEYS = new Set(["name", "email", "company", "role", "timezone", "language"]);
+const SETTINGS_MAX_LENGTH: Record<string, number> = {
+  name: 120,
+  email: 254,
+  company: 120,
+  role: 120,
+  timezone: 100,
+  language: 50,
+};
+
+function sanitizeSettings(input: unknown) {
+  if (!input || typeof input !== "object") return {};
+  const obj = input as Record<string, unknown>;
+  const sanitized: Record<string, string> = {};
+
+  for (const key of Object.keys(obj)) {
+    if (!SETTINGS_ALLOWED_KEYS.has(key)) continue;
+    if (typeof obj[key] !== "string") continue;
+
+    const value = obj[key].trim();
+    const max = SETTINGS_MAX_LENGTH[key] || 120;
+    sanitized[key] = value.slice(0, max);
+  }
+
+  return sanitized;
+}
+
+function validateSettingsUpdatePayload(input: unknown): { ok: true; value: Record<string, string> } | { ok: false; error: string } {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Payload de parametres invalide." };
+  }
+
+  const obj = input as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) {
+    return { ok: false, error: "Aucune propriete de parametre fournie." };
+  }
+
+  for (const key of keys) {
+    if (!SETTINGS_ALLOWED_KEYS.has(key)) {
+      return { ok: false, error: `Champ de parametre non autorise: ${key}` };
+    }
+
+    const value = obj[key];
+    if (typeof value !== "string") {
+      return { ok: false, error: `Le champ ${key} doit etre une chaine de caracteres.` };
+    }
+
+    const trimmed = value.trim();
+    const maxLength = SETTINGS_MAX_LENGTH[key] || 120;
+    if (trimmed.length > maxLength) {
+      return { ok: false, error: `Le champ ${key} depasse la limite autorisee (${maxLength} caracteres).` };
+    }
+
+    if (key === "email" && trimmed && !isValidEmail(trimmed)) {
+      return { ok: false, error: "Format d'email invalide." };
+    }
+  }
+
+  return { ok: true, value: sanitizeSettings(obj) };
+}
+
 async function ensureUserData(userId: string, email?: string, name?: string) {
   try {
     // Check if user tokens exist, if not, initialize
@@ -618,11 +808,16 @@ app.post(`${PREFIX}/posts`, async (c) => {
 
   try {
     const postData = await c.req.json();
+    const validation = validatePostCreatePayload(postData);
+    if (!validation.ok) {
+      return c.json({ error: validation.error }, 400);
+    }
+
     const posts = (await kv.get(`user:${userId}:posts`)) || [];
 
     const newPost = {
       id: crypto.randomUUID(),
-      ...postData,
+      ...validation.value,
       createdAt: new Date().toISOString(),
     };
     posts.push(newPost);
@@ -643,7 +838,16 @@ app.put(`${PREFIX}/posts/:id`, async (c) => {
 
   try {
     const postId = c.req.param("id");
+    if (!postId || postId.length > 128) {
+      return c.json({ error: "Identifiant de publication invalide." }, 400);
+    }
+
     const updateData = await c.req.json();
+    const validation = validatePostUpdatePayload(updateData);
+    if (!validation.ok) {
+      return c.json({ error: validation.error }, 400);
+    }
+
     const posts = (await kv.get(`user:${userId}:posts`)) || [];
 
     const index = posts.findIndex((p: any) => p.id === postId);
@@ -651,7 +855,7 @@ app.put(`${PREFIX}/posts/:id`, async (c) => {
       return c.json({ error: "Publication non trouvee." }, 404);
     }
 
-    posts[index] = { ...posts[index], ...updateData, updatedAt: new Date().toISOString() };
+    posts[index] = { ...posts[index], ...validation.value, updatedAt: new Date().toISOString() };
     await kv.set(`user:${userId}:posts`, posts);
 
     return c.json({ success: true, post: posts[index] });
@@ -669,6 +873,10 @@ app.delete(`${PREFIX}/posts/:id`, async (c) => {
 
   try {
     const postId = c.req.param("id");
+    if (!postId || postId.length > 128) {
+      return c.json({ error: "Identifiant de publication invalide." }, 400);
+    }
+
     let posts = (await kv.get(`user:${userId}:posts`)) || [];
     const before = posts.length;
     posts = posts.filter((p: any) => p.id !== postId);
@@ -697,7 +905,7 @@ app.get(`${PREFIX}/settings`, async (c) => {
 
   try {
     const settings = (await kv.get(`user:${userId}:settings`)) || {};
-    return c.json(settings);
+    return c.json(sanitizeSettings(settings));
   } catch (e) {
     console.log("Get settings error:", e);
     return c.json({ error: `Erreur lors de la recuperation des parametres: ${e}` }, 500);
@@ -712,8 +920,13 @@ app.put(`${PREFIX}/settings`, async (c) => {
 
   try {
     const updates = await c.req.json();
-    const existing = (await kv.get(`user:${userId}:settings`)) || {};
-    const merged = { ...existing, ...updates };
+    const validation = validateSettingsUpdatePayload(updates);
+    if (!validation.ok) {
+      return c.json({ error: validation.error }, 400);
+    }
+
+    const existing = sanitizeSettings((await kv.get(`user:${userId}:settings`)) || {});
+    const merged = { ...existing, ...validation.value };
     await kv.set(`user:${userId}:settings`, merged);
     return c.json({ success: true, settings: merged });
   } catch (e) {
