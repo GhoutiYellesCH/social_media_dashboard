@@ -1,6 +1,7 @@
-import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
-const BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-0d8dae93`;
+const BASE_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+const REQUEST_TIMEOUT_MS = 10000;
 
 let accessToken: string | null = null;
 
@@ -27,17 +28,25 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
   const token = getAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token || publicAnonKey}`,
+    apikey: publicAnonKey,
     ...(options.headers as Record<string, string> || {}),
   };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+    const data = raw ? JSON.parse(raw) : {};
 
     if (!res.ok) {
       console.error(`API error [${res.status}] ${path}:`, data);
@@ -45,10 +54,15 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
     }
 
     return data;
-  } catch (e) {
-    if (e instanceof ApiError) throw e;
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new ApiError("Le serveur met trop de temps a repondre.", 408);
+    }
+    if (e && e.status !== undefined) throw e;
     console.error(`Network error ${path}:`, e);
     throw new ApiError("Erreur reseau. Verifiez votre connexion.", 0);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -90,6 +104,20 @@ export async function getMe() {
   return request("/auth/me");
 }
 
+export async function resetPassword(email: string) {
+  return request("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function updatePassword(password: string) {
+  return request("/auth/update-password", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
 export function logout() {
   setAccessToken(null);
   localStorage.removeItem("socialdz_user");
@@ -110,6 +138,13 @@ export async function consumeTokens(amount: number, action: string, module: stri
 
 export async function purchaseTokens(amount: number) {
   return request("/tokens/purchase", {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export async function createBaridimobPayment(amount: number) {
+  return request("/tokens/baridimob/payment", {
     method: "POST",
     body: JSON.stringify({ amount }),
   });
@@ -178,4 +213,49 @@ export async function addAccount(accountData: any) {
 
 export async function removeAccount(id: string) {
   return request(`/accounts/${id}`, { method: "DELETE" });
+}
+
+export interface ApiDiagnosticResult {
+  name: string;
+  ok: boolean;
+  status?: number;
+  message: string;
+}
+
+export async function runApiDiagnostics(): Promise<ApiDiagnosticResult[]> {
+  const checks: Array<{ name: string; path: string; options?: RequestInit }> = [
+    { name: "health", path: "/health" },
+    {
+      name: "auth-login-route",
+      path: "/auth/login",
+      options: { method: "POST", body: JSON.stringify({ email: "", password: "" }) },
+    },
+    {
+      name: "auth-signup-route",
+      path: "/auth/signup",
+      options: { method: "POST", body: JSON.stringify({ email: "", password: "", name: "" }) },
+    },
+  ];
+
+  const results: ApiDiagnosticResult[] = [];
+  for (const check of checks) {
+    try {
+      await request(check.path, check.options);
+      results.push({
+        name: check.name,
+        ok: true,
+        message: "OK",
+      });
+    } catch (e: any) {
+      const reachableValidationError = e?.status === 400 || e?.status === 401 || e?.status === 422;
+      results.push({
+        name: check.name,
+        ok: reachableValidationError,
+        status: e?.status,
+        message: e?.message || "Erreur inconnue",
+      });
+    }
+  }
+
+  return results;
 }

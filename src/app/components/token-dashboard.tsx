@@ -1,6 +1,8 @@
-import { Coins, TrendingUp, Zap, ShoppingCart, BarChart3, Clock, ArrowUpRight, Package } from "lucide-react";
+import { Coins, TrendingUp, Zap, ShoppingCart, BarChart3, Clock, ArrowUpRight, Package, Loader2 } from "lucide-react";
 import { useTokens } from "./token-context";
 import { toast } from "sonner";
+import { useState } from "react";
+import * as apiClient from "./api-client";
 import {
   AreaChart,
   Area,
@@ -36,15 +38,34 @@ const usageByModule = [
 ];
 
 const tokenPacks = [
-  { amount: 1000, price: "990 DZD", popular: false },
-  { amount: 3000, price: "2 490 DZD", popular: true },
-  { amount: 5000, price: "3 990 DZD", popular: false },
-  { amount: 10000, price: "6 990 DZD", popular: false },
+  { amount: 1000, labelPrice: "990 DZD", priceDzd: 990, popular: false },
+  { amount: 3000, labelPrice: "2 490 DZD", priceDzd: 2490, popular: true },
+  { amount: 5000, labelPrice: "3 990 DZD", priceDzd: 3990, popular: false },
+  { amount: 10000, labelPrice: "6 990 DZD", priceDzd: 6990, popular: false },
 ];
 
 export function TokenDashboard() {
   const { balance, totalUsed, monthlyAllowance, plan, history, addTokens, loading } = useTokens();
   const usagePercent = Math.round(((monthlyAllowance - balance) / monthlyAllowance) * 100);
+  const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
+
+  const handlePurchase = async (amount: number, priceDzd: number) => {
+    setPaymentLoading(amount);
+    try {
+      // Create Baridimob payment link
+      const res = await apiClient.createBaridimobPayment(priceDzd);
+      if (res.success && res.paymentUrl) {
+        // Rediriger vers l'URL de paiement Baridimob
+        window.location.href = res.paymentUrl;
+      } else {
+        toast.error("Erreur", { description: "Impossible de creer le paiement." });
+      }
+    } catch(e: any) {
+      toast.error("Erreur", { description: e.message || "Erreur de connexion" });
+    } finally {
+      setPaymentLoading(null);
+    }
+  };
 
   return (
     <main className="flex-1 h-screen overflow-y-auto bg-background">
@@ -158,13 +179,15 @@ export function TokenDashboard() {
                 <Coins size={24} className={`mx-auto mb-2 ${pack.popular ? "text-[#2563EB]" : "text-muted-foreground"}`} />
                 <p style={{ fontSize: 22, fontWeight: 700 }}>{pack.amount.toLocaleString()}</p>
                 <p className="text-muted-foreground" style={{ fontSize: 12 }}>tokens</p>
-                <p style={{ fontSize: 16, fontWeight: 700 }} className="mt-2">{pack.price}</p>
+                <p style={{ fontSize: 16, fontWeight: 700 }} className="mt-2">{pack.labelPrice}</p>
                 <button
-                  onClick={() => { addTokens(pack.amount); toast.success(`${pack.amount.toLocaleString()} tokens ajoutes !`); }}
-                  className={`w-full mt-3 py-2 rounded-lg transition-colors ${pack.popular ? "bg-[#2563EB] text-white hover:bg-[#1d4ed8]" : "border border-border hover:bg-accent"}`}
+                  onClick={() => handlePurchase(pack.amount, pack.priceDzd)}
+                  disabled={paymentLoading === pack.amount}
+                  className={`w-full mt-3 py-2 flex justify-center items-center gap-2 rounded-lg transition-colors ${pack.popular ? "bg-[#2563EB] text-white hover:bg-[#1d4ed8]" : "border border-border hover:bg-accent"} disabled:opacity-50`}
                   style={{ fontSize: 13, fontWeight: 600 }}
                 >
-                  Acheter
+                  {paymentLoading === pack.amount && <Loader2 size={14} className="animate-spin" />}
+                  Payer via Baridimob
                 </button>
               </div>
             ))}

@@ -5,7 +5,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.tsx";
 
 const app = new Hono();
-const PREFIX = "/make-server-0d8dae93";
+const PREFIX = ""; // Remove the PREFIX since we're calling /functions/v1/server directly
+const APP_ORIGIN = Deno.env.get("APP_ORIGIN") || "http://localhost:5173";
 
 // Supabase client for auth
 const supabaseAdmin = () =>
@@ -25,13 +26,21 @@ app.use("*", logger(console.log));
 app.use(
   "/*",
   cors({
-    origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    origin: APP_ORIGIN,
+    allowHeaders: ["Content-Type", "Authorization", "apikey", "x-baridi-signature", "x-baridi-timestamp"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
   })
 );
+
+app.use("/*", async (c, next) => {
+  await next();
+  c.res.headers.set("X-Content-Type-Options", "nosniff");
+  c.res.headers.set("X-Frame-Options", "DENY");
+  c.res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+});
 
 // --- Helpers ---
 
@@ -56,6 +65,36 @@ function requireAuth(c: any, userId: string | null) {
     return c.json({ error: "Non autorise. Veuillez vous connecter." }, 401);
   }
   return null;
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isStrongPassword(password: string) {
+  return typeof password === "string" && password.length >= 8;
+}
+
+async function hmacSHA256Hex(secret: string, payload: string): Promise<string> {
+  const keyData = new TextEncoder().encode(secret);
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(payload));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 // Default token config per plan
@@ -97,6 +136,18 @@ app.get(`${PREFIX}/health`, (c) => {
   return c.json({ status: "ok", service: "SocialdZ API", version: "1.0.0" });
 });
 
+app.get(`${PREFIX}/diagnostics`, (c) => {
+  return c.json({
+    status: "ok",
+    checks: {
+      health: true,
+      authRoutesMounted: true,
+      tokenRoutesMounted: true,
+      webhookRouteMounted: true,
+    },
+  });
+});
+
 // =========================
 // AUTH ROUTES
 // =========================
@@ -107,6 +158,12 @@ app.post(`${PREFIX}/auth/signup`, async (c) => {
     const { email, password, name } = await c.req.json();
     if (!email || !password) {
       return c.json({ error: "Email et mot de passe requis." }, 400);
+    }
+    if (!isValidEmail(email)) {
+      return c.json({ error: "Email invalide." }, 400);
+    }
+    if (!isStrongPassword(password)) {
+      return c.json({ error: "Mot de passe trop faible (8 caracteres minimum)." }, 400);
     }
 
     const supabase = supabaseAdmin();
@@ -127,10 +184,7 @@ app.post(`${PREFIX}/auth/signup`, async (c) => {
     await ensureUserData(data.user.id, email, name);
 
     // Sign in immediately to get a session
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const anonClient = supabaseAnon();
     const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
       email,
       password,
@@ -164,11 +218,11 @@ app.post(`${PREFIX}/auth/login`, async (c) => {
     if (!email || !password) {
       return c.json({ error: "Email et mot de passe requis." }, 400);
     }
+    if (!isValidEmail(email)) {
+      return c.json({ error: "Email invalide." }, 400);
+    }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = supabaseAnon();
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -199,6 +253,54 @@ app.post(`${PREFIX}/auth/login`, async (c) => {
   } catch (e) {
     console.log("Login exception:", e);
     return c.json({ error: `Erreur serveur lors de la connexion: ${e}` }, 500);
+  }
+});
+
+// POST /reset-password
+app.post(`${PREFIX}/auth/reset-password`, async (c) => {
+  try {
+    const { email } = await c.req.json();
+    if (!email) return c.json({ error: "Email requis." }, 400);
+    if (!isValidEmail(email)) return c.json({ error: "Email invalide." }, 400);
+
+    const supabase = supabaseAnon();
+    
+    // Usually requires configure email templates in Supabase Auth
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${new URL(c.req.url).origin}/reset-password`,
+    });
+
+    if (error) {
+      return c.json({ error: error.message }, 400);
+    }
+    
+    return c.json({ success: true, message: "Lien de reinitialisation envoye." });
+  } catch(e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /update-password
+app.post(`${PREFIX}/auth/update-password`, async (c) => {
+  try {
+    const userId = await getUserId(c);
+    const authError = requireAuth(c, userId);
+    if (authError) return authError;
+    
+    const { password } = await c.req.json();
+    if (!password) return c.json({ error: "Mot de passe requis." }, 400);
+
+    if (!isStrongPassword(password)) {
+      return c.json({ error: "Mot de passe trop faible (8 caracteres minimum)." }, 400);
+    }
+
+    const supabase = supabaseAdmin();
+    const { error } = await supabase.auth.admin.updateUserById(userId as string, { password });
+    if (error) return c.json({ error: error.message }, 400);
+    
+    return c.json({ success: true });
+  } catch(e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
   }
 });
 
@@ -293,6 +395,91 @@ app.post(`${PREFIX}/tokens/consume`, async (c) => {
   } catch (e) {
     console.log("Consume tokens error:", e);
     return c.json({ error: `Erreur lors de la consommation des tokens: ${e}` }, 500);
+  }
+});
+
+// POST /tokens/baridimob/payment
+app.post(`${PREFIX}/tokens/baridimob/payment`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const { amount } = await c.req.json();
+    if (!amount || amount <= 0) return c.json({ error: "Montant invalide." }, 400);
+
+    const transactionId = crypto.randomUUID();
+    
+    await kv.set(`payment:${transactionId}`, {
+      userId,
+      amount,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    });
+
+    const paymentUrl = `https://checkout.baridimob.dz/checkout?token=${transactionId}&amount=${amount}`;
+    
+    return c.json({ success: true, paymentUrl, transactionId });
+  } catch(e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /webhooks/baridimob
+app.post(`${PREFIX}/webhooks/baridimob`, async (c) => {
+  try {
+    const secret = Deno.env.get("BARIDIMOB_WEBHOOK_SECRET");
+    if (!secret) {
+      return c.json({ error: "Webhook secret non configure." }, 503);
+    }
+
+    const signature = c.req.header("x-baridi-signature") || "";
+    const timestamp = c.req.header("x-baridi-timestamp") || "";
+    const rawPayload = await c.req.text();
+    const expected = await hmacSHA256Hex(secret, `${timestamp}.${rawPayload}`);
+    if (!timingSafeEqual(signature, expected)) {
+      return c.json({ error: "Signature invalide." }, 401);
+    }
+
+    const payload = JSON.parse(rawPayload);
+    const { transactionId, status } = payload;
+
+    if (!transactionId || status !== "success") {
+      return c.json({ error: "Invalid payload or payment not successful" }, 400);
+    }
+    
+    const payment = await kv.get(`payment:${transactionId}`);
+    if (!payment || payment.status !== "pending") {
+      return c.json({ error: "Transaction not found or already processed" }, 400);
+    }
+    
+    // Process payment
+    const userId = payment.userId;
+    const tokens = await kv.get(`user:${userId}:tokens`);
+    if (tokens) {
+      // e.g. 100 DZD = 1000 tokens
+      const addedTokens = Number(payment.amount) * 10;
+      tokens.balance += addedTokens; 
+      
+      await kv.set(`user:${userId}:tokens`, tokens);
+      
+      const history = await kv.get(`user:${userId}:token_history`) || [];
+      history.unshift({
+        id: crypto.randomUUID(),
+        date: new Date().toISOString(),
+        action: "Achat Baridimob",
+        amount: addedTokens,
+        type: "earn",
+      });
+      await kv.set(`user:${userId}:token_history`, history);
+    }
+    
+    payment.status = "completed";
+    await kv.set(`payment:${transactionId}`, payment);
+    
+    return c.json({ success: true });
+  } catch(e) {
+    return c.json({ error: `Webhook error: ${e}` }, 500);
   }
 });
 

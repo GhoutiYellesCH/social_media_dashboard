@@ -5,24 +5,50 @@ export function LoginPage({
   onLogin,
   onBack,
   onSignUp,
+  onResetPassword,
   error,
 }: {
   onLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   onBack: () => void;
   onSignUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  onResetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   error?: string;
 }) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError("");
+    setResetSuccess(false);
+
+    if (isForgotPassword) {
+      if (!email) {
+        setLocalError("Veuillez entrer votre email.");
+        return;
+      }
+      setLoading(true);
+      try {
+        const result = await onResetPassword(email);
+        if (!result.success) {
+          setLocalError(result.error || "Erreur de réinitialisation");
+        } else {
+          setResetSuccess(true);
+        }
+      } catch (err: any) {
+        setLocalError(err.message || "Erreur inattendue");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (!email || !password) {
       setLocalError("Veuillez remplir tous les champs.");
@@ -114,10 +140,10 @@ export function LoginPage({
           </button>
 
           <h1 style={{ fontSize: 28, fontWeight: 700 }} className="mb-2">
-            {isSignUp ? "Creez votre compte" : "Bon retour !"}
+            {isForgotPassword ? "Mot de passe oublie ?" : isSignUp ? "Creez votre compte" : "Bon retour !"}
           </h1>
           <p className="text-muted-foreground mb-8" style={{ fontSize: 14 }}>
-            {isSignUp ? "Essai gratuit de 14 jours - 500 tokens IA offerts" : "Connectez-vous a votre compte SocialdZ"}
+            {isForgotPassword ? "Entrez votre adresse e-mail poour recevoir un lien de reinitialisation." : isSignUp ? "Essai gratuit de 14 jours - 500 tokens IA offerts" : "Connectez-vous a votre compte SocialdZ"}
           </p>
 
           {displayError && (
@@ -133,7 +159,7 @@ export function LoginPage({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
+            {isSignUp && !isForgotPassword && (
               <div>
                 <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Nom complet</label>
                 <input
@@ -159,35 +185,37 @@ export function LoginPage({
                 disabled={loading}
               />
             </div>
-            <div>
-              <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Mot de passe</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 6 caracteres"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-input-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] pr-10"
-                  style={{ fontSize: 14 }}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+            {!isForgotPassword && (
+              <div>
+                <label className="text-foreground mb-1.5 block" style={{ fontSize: 13, fontWeight: 500 }}>Mot de passe</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Min. 6 caracteres"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-input-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] pr-10"
+                    style={{ fontSize: 14 }}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {!isSignUp && (
+            {!isSignUp && !isForgotPassword && (
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-border" />
                   <span className="text-muted-foreground" style={{ fontSize: 13 }}>Se souvenir de moi</span>
                 </label>
-                <button type="button" className="text-[#2563EB] hover:underline" style={{ fontSize: 13 }}>Mot de passe oublie ?</button>
+                <button type="button" onClick={() => setIsForgotPassword(true)} className="text-[#2563EB] hover:underline" style={{ fontSize: 13 }}>Mot de passe oublie ?</button>
               </div>
             )}
 
@@ -199,23 +227,44 @@ export function LoginPage({
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading
-                ? (isSignUp ? "Creation en cours..." : "Connexion en cours...")
-                : (isSignUp ? "Creer Mon Compte" : "Se Connecter")}
+                ? (isForgotPassword ? "Envoi en cours..." : isSignUp ? "Creation en cours..." : "Connexion en cours...")
+                : (isForgotPassword ? "Reinitialiser le mot de passe" : isSignUp ? "Creer Mon Compte" : "Se Connecter")}
             </button>
           </form>
 
+          {resetSuccess && (
+            <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-center" style={{ fontSize: 13 }}>
+              Si cet e-mail est associe a un compte, vous recevrez un lien de reinitialisation.
+            </div>
+          )}
+
           <p className="text-center mt-6 text-muted-foreground" style={{ fontSize: 14 }}>
-            {isSignUp ? "Vous avez deja un compte ?" : "Pas encore de compte ?"}{" "}
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setLocalError("");
-              }}
-              className="text-[#2563EB] hover:underline"
-              style={{ fontWeight: 500 }}
-            >
-              {isSignUp ? "Se connecter" : "S'inscrire"}
-            </button>
+            {isForgotPassword ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                      setIsForgotPassword(false);
+                      setLocalError("");
+                      setResetSuccess(false);
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ fontSize: 14 }}
+                >
+                  Retour a la connexion
+                </button>
+            ) : isSignUp ? "Vous avez deja un compte ?" : "Pas encore de compte ?"}{" "}
+            {!isForgotPassword && (
+              <button
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setLocalError("");
+                }}
+                className="text-[#2563EB] hover:underline"
+                style={{ fontWeight: 500 }}
+              >
+                {isSignUp ? "Se connecter" : "S'inscrire"}
+              </button>
+            )}
           </p>
         </div>
       </div>

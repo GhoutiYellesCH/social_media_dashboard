@@ -29,6 +29,19 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Toaster, toast } from "sonner";
 import * as apiClient from "./components/api-client";
+import { createClient } from "@supabase/supabase-js";
+import { projectId, publicAnonKey } from "../../utils/supabase/info";
+import {
+  AppPage,
+  DEFAULT_APP_ROUTE,
+  DEFAULT_NAV,
+  pushSafeRoute,
+  resolveSecureRoute,
+  safeRouteForNav,
+} from "./secure-routing";
+
+const supabaseUrl = `https://${projectId}.supabase.co`;
+const supabase = createClient(supabaseUrl, publicAnonKey);
 
 const today = new Date();
 const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -122,20 +135,47 @@ const initialPosts: ScheduledPost[] = [
 ];
 
 function AppInner() {
-  const { user, isAuthenticated, isLoading: authLoading, login, signup, logout } = useAuth();
-  const [page, setPage] = useState<"landing" | "login" | "dashboard">("landing");
-  const [activeNav, setActiveNav] = useState("Tableau de Bord");
+  const { user, isAuthenticated, isLoading: authLoading, login, signup, resetPassword, logout } = useAuth();
+  const [page, setPage] = useState<AppPage>("landing");
+  const [activeNav, setActiveNav] = useState(DEFAULT_NAV);
+  const [postLoginRedirect, setPostLoginRedirect] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [posts, setPosts] = useState<ScheduledPost[]>(initialPosts);
   const [darkMode, setDarkMode] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  // If user is already authenticated, go to dashboard
+  // Sync app state from URL and browser navigation
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      setPage("dashboard");
-    }
+    if (authLoading) return;
+
+    const syncFromLocation = () => {
+      const route = resolveSecureRoute(window.location.pathname, isAuthenticated);
+      setPage(route.page);
+      setActiveNav(route.nav);
+      setPostLoginRedirect(route.postLoginRedirect || null);
+    };
+
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
   }, [authLoading, isAuthenticated]);
+
+  // Keep URL aligned when auth state changes
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (isAuthenticated) {
+      const path = safeRouteForNav(activeNav);
+      pushSafeRoute(path, true);
+      setPage("dashboard");
+      return;
+    }
+
+    if (page === "dashboard") {
+      setPage("login");
+      pushSafeRoute("/login", true);
+    }
+  }, [authLoading, isAuthenticated, activeNav, page]);
 
   useEffect(() => {
     if (darkMode) {
@@ -157,8 +197,29 @@ function AppInner() {
           setPosts(parsed);
         }
       }).catch((e) => console.error("Failed to load posts:", e));
+
+      // Enable Real-Time Notifications
+      const channel = supabase
+        .channel("custom-all-channel")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user?.id}` },
+          (payload) => {
+            console.log("Change received!", payload);
+            if (payload.eventType === "INSERT") {
+              toast.info("Nouvelle Notification", {
+                description: payload.new.message || "Vous avez une nouvelle notification.",
+              });
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   const handleNewPost = async (data: any) => {
     const platforms = Object.entries(data.networks || {})
@@ -237,7 +298,12 @@ function AppInner() {
     setLoginError("");
     const result = await login(email, password);
     if (result.success) {
+      const targetRoute = postLoginRedirect || DEFAULT_APP_ROUTE;
+      const targetRouteState = resolveSecureRoute(targetRoute, true);
+      setActiveNav(targetRouteState.nav);
       setPage("dashboard");
+      pushSafeRoute(safeRouteForNav(targetRouteState.nav));
+      setPostLoginRedirect(null);
       toast.success("Bon retour !", { description: "Vous etes connecte a SocialdZ." });
     } else {
       setLoginError(result.error || "Erreur de connexion");
@@ -250,7 +316,12 @@ function AppInner() {
     setLoginError("");
     const result = await signup(email, password, name);
     if (result.success) {
+      const targetRoute = postLoginRedirect || DEFAULT_APP_ROUTE;
+      const targetRouteState = resolveSecureRoute(targetRoute, true);
+      setActiveNav(targetRouteState.nav);
       setPage("dashboard");
+      pushSafeRoute(safeRouteForNav(targetRouteState.nav));
+      setPostLoginRedirect(null);
       toast.success("Compte cree !", { description: "Bienvenue sur SocialdZ ! 500 tokens IA offerts." });
     } else {
       setLoginError(result.error || "Erreur d'inscription");
@@ -259,10 +330,23 @@ function AppInner() {
     return result;
   };
 
+  const handleResetPassword = async (email: string) => {
+    setLoginError("");
+    const result = await resetPassword(email);
+    if (result.success) {
+      toast.success("Email envoyé", { description: "Veuillez vérifier votre boîte de réception pour réinitialiser le mot de passe." });
+    } else {
+      toast.error("Échec", { description: result.error });
+    }
+    return result;
+  };
+
   const handleLogout = () => {
     logout();
     setPage("landing");
-    setActiveNav("Tableau de Bord");
+    setActiveNav(DEFAULT_NAV);
+    setPostLoginRedirect(null);
+    pushSafeRoute("/");
     toast.success("Deconnexion reussie !");
   };
 
@@ -285,8 +369,14 @@ function AppInner() {
     return (
       <>
         <LandingPage
-          onGetStarted={() => setPage("login")}
-          onLogin={() => setPage("login")}
+          onGetStarted={() => {
+            setPage("login");
+            pushSafeRoute("/login");
+          }}
+          onLogin={() => {
+            setPage("login");
+            pushSafeRoute("/login");
+          }}
         />
         <Toaster position="bottom-right" richColors closeButton />
       </>
@@ -299,8 +389,12 @@ function AppInner() {
       <>
         <LoginPage
           onLogin={handleLogin}
-          onBack={() => setPage("landing")}
+          onBack={() => {
+            setPage("landing");
+            pushSafeRoute("/");
+          }}
           onSignUp={handleSignup}
+          onResetPassword={handleResetPassword}
           error={loginError}
         />
         <Toaster position="bottom-right" richColors closeButton />
@@ -365,7 +459,11 @@ function AppInner() {
         <div className="flex h-screen w-screen overflow-hidden bg-background">
           <Sidebar
             activeNav={activeNav}
-            onNavChange={setActiveNav}
+            onNavChange={(label) => {
+              setActiveNav(label);
+              const targetPath = safeRouteForNav(label);
+              pushSafeRoute(targetPath);
+            }}
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode((d) => !d)}
             onLogout={handleLogout}
