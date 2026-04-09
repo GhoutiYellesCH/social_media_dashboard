@@ -211,7 +211,13 @@ export function TokenDashboard() {
                   <p className="text-muted-foreground" style={{ fontSize: 11 }}>{log.module} - {log.timestamp}</p>
                 </div>
               </div>
-              <span className="text-red-500" style={{ fontSize: 13, fontWeight: 600 }}>-{log.tokens}</span>
+              <span
+                className={log.type === "earn" ? "text-emerald-600" : "text-red-500"}
+                style={{ fontSize: 13, fontWeight: 600 }}
+              >
+                {log.type === "earn" ? "+" : "-"}
+                {log.tokens}
+              </span>
             </div>
           ))}
         </div>

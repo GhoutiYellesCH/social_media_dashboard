@@ -402,55 +402,37 @@ function AppInner() {
     );
   }
 
+  const viewRenderers: Record<string, () => JSX.Element> = {
+    "Tableau de Bord": () => <DashboardOverview onNewPost={() => setShowModal(true)} />,
+    Calendrier: () => (
+      <WeeklyCalendar
+        posts={posts}
+        onNewPost={() => setShowModal(true)}
+        onMovePost={handleMovePost}
+      />
+    ),
+    Composer: () => <PostComposer onSubmit={handleNewPost} />,
+    Analytiques: () => <AnalyticsView />,
+    Comptes: () => <AccountsView />,
+    Parametres: () => <SettingsView />,
+    Aide: () => <HelpSupportView />,
+    "Ads Manager": () => <AdsManager />,
+    Blog: () => <BlogManager />,
+    "Email Marketing": () => <EmailManager />,
+    Funnels: () => <SalesFunnels />,
+    "Link-in-Bio": () => <LinkInBio />,
+    "UTM Builder": () => <UtmBuilder />,
+    Hashtags: () => <HashtagResearch />,
+    Inbox: () => <InboxManager />,
+    "Social Listening": () => <SocialListening />,
+    Equipe: () => <TeamPermissions />,
+    Mediatheque: () => <ContentLibrary />,
+    Tokens: () => <TokenDashboard />,
+  };
+
   const renderView = () => {
-    switch (activeNav) {
-      case "Tableau de Bord":
-        return <DashboardOverview onNewPost={() => setShowModal(true)} />;
-      case "Calendrier":
-        return (
-          <WeeklyCalendar
-            posts={posts}
-            onNewPost={() => setShowModal(true)}
-            onMovePost={handleMovePost}
-          />
-        );
-      case "Composer":
-        return <PostComposer onSubmit={handleNewPost} />;
-      case "Analytiques":
-        return <AnalyticsView />;
-      case "Comptes":
-        return <AccountsView />;
-      case "Parametres":
-        return <SettingsView />;
-      case "Aide":
-        return <HelpSupportView />;
-      case "Ads Manager":
-        return <AdsManager />;
-      case "Blog":
-        return <BlogManager />;
-      case "Email Marketing":
-        return <EmailManager />;
-      case "Funnels":
-        return <SalesFunnels />;
-      case "Link-in-Bio":
-        return <LinkInBio />;
-      case "UTM Builder":
-        return <UtmBuilder />;
-      case "Hashtags":
-        return <HashtagResearch />;
-      case "Inbox":
-        return <InboxManager />;
-      case "Social Listening":
-        return <SocialListening />;
-      case "Equipe":
-        return <TeamPermissions />;
-      case "Mediatheque":
-        return <ContentLibrary />;
-      case "Tokens":
-        return <TokenDashboard />;
-      default:
-        return <DashboardOverview onNewPost={() => setShowModal(true)} />;
-    }
+    const renderer = viewRenderers[activeNav] || viewRenderers[DEFAULT_NAV];
+    return renderer();
   };
 
   return (

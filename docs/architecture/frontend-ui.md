@@ -17,6 +17,14 @@
 - sidebar-driven module switching
 - global realtime notification subscription
 
+Routing and navigation source of truth:
+- `src/app/navigation-config.ts`
+	- central nav labels, route paths, and grouped sections
+- `src/app/secure-routing.ts`
+	- auth-aware route guards and safe history navigation
+- `src/app/components/sidebar.tsx`
+	- consumes grouped nav config for rendering menu structure
+
 ## Major UI Domains
 
 1. Auth and onboarding
@@ -88,3 +96,4 @@ Modules requiring backend integration work:
 - Keep module components mostly presentational; push side effects to context/hooks.
 - Use optimistic UI only where rollback is clearly handled.
 - Avoid storing provider tokens client-side; provider auth flows must terminate server-side.
+- Keep route labels and paths in `navigation-config.ts`; avoid hardcoding paths in UI components.

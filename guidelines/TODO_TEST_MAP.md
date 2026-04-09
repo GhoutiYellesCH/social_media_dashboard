@@ -82,7 +82,7 @@ Update this file at every feature milestone.
 | ----- | --------------------------------------------- | ------ | ---------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
 | S1-01 | Posts route hardening + validation            | done   | `supabase/functions/server/index.ts`                                         | `GET/POST/PUT/DELETE /posts*`        | `npm run test:api`, manual invalid payload checks |
 | S1-02 | Settings schema validation                    | done   | `supabase/functions/server/index.ts`                                         | `GET/PUT /settings`                  | save/load profile values across refresh           |
-| S1-03 | Token history shape consistency               | todo   | `src/app/components/token-context.tsx`, `supabase/functions/server/index.ts` | `GET /tokens/history`                | no UI errors, consistent `timestamp` rendering    |
+| S1-03 | Token history shape consistency               | done   | `src/app/components/token-context.tsx`, `supabase/functions/server/index.ts`, `src/app/components/token-dashboard.tsx` | `GET /tokens/history`                | no UI errors, consistent `timestamp` rendering    |
 | S1-04 | Add authenticated API smoke checks in CI mode | todo   | `scripts/api-smoke-test.mjs`, `README.md`                                    | `/auth/me`, `/tokens` with test user | `API_TEST_EMAIL/PASSWORD` checks pass             |
   
 
@@ -134,15 +134,15 @@ Update this file at every feature milestone.
 
   
 
-1. S1-03 Token history shape consistency.
+1. S1-04 Authenticated API smoke checks.
 
-2. S1-04 Authenticated API smoke checks.
+2. S2-01 Storage metadata schema migration.
 
-3. S2-01 Storage metadata schema migration.
+3. S2-02 Signed upload URL endpoint.
 
-4. S2-02 Signed upload URL endpoint.
+4. S2-03 Content library API wiring.
 
-5. S2-03 Content library API wiring.
+5. S3-01 Social connection schema.
 
   
 
@@ -234,3 +234,9 @@ Update this file at every feature milestone.
 - 2026-04-03: Completed S1-01 by adding strict posts create/update payload validation and post id guards in backend routes.
 
 - 2026-04-03: Completed S1-02 by enforcing settings schema validation/sanitization and unknown field rejection for `PUT /settings`.
+
+- 2026-04-03: Settings account security backend completed with password update wiring and protected 2FA setup/enable/disable endpoints, connected in settings UI.
+
+- 2026-04-03: Refactored UI routing structure with centralized navigation config and sidebar/app rendering alignment for cleaner API-connected module navigation.
+
+- 2026-04-03: Completed S1-03 by normalizing token history schema on API and frontend rendering (`timestamp`, `type`, `tokens`) with legacy entry compatibility.

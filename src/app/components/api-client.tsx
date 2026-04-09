@@ -5,6 +5,27 @@ const REQUEST_TIMEOUT_MS = 10000;
 
 let accessToken: string | null = null;
 
+function extractErrorMessage(data: any, status: number): string {
+  if (!data) return `Erreur ${status}`;
+  if (typeof data === "string" && data.trim()) return data.trim();
+
+  const candidates = [
+    data.error,
+    data.message,
+    data.msg,
+    data.error_description,
+    data.details,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return `Erreur ${status}`;
+}
+
 export function setAccessToken(token: string | null) {
   accessToken = token;
   if (token) {
@@ -46,11 +67,45 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
     });
 
     const raw = await res.text();
-    const data = raw ? JSON.parse(raw) : {};
+    const contentType = res.headers.get("content-type") || "";
+    let data: any = {};
+    if (raw) {
+      if (contentType.includes("application/json")) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { error: raw };
+        }
+      } else {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { error: raw };
+        }
+      }
+    }
 
     if (!res.ok) {
       console.error(`API error [${res.status}] ${path}:`, data);
-      throw new ApiError(data.error || `Erreur ${res.status}`, res.status, data);
+      const message = extractErrorMessage(data, res.status);
+
+      if (res.status === 401) {
+        const lower = message.toLowerCase();
+        if (
+          lower.includes("invalid jwt") ||
+          lower.includes("jwt") ||
+          lower.includes("missing authorization header") ||
+          lower.includes("authorization header")
+        ) {
+          logout();
+          throw new ApiError("Session expiree. Veuillez vous reconnecter.", res.status, data);
+        }
+      }
+
+      if (res.status === 404) {
+        throw new ApiError("Route backend introuvable (404). Deployez la derniere version de la fonction server.", res.status, data);
+      }
+      throw new ApiError(message, res.status, data);
     }
 
     return data;
@@ -115,6 +170,47 @@ export async function updatePassword(password: string) {
   return request("/auth/update-password", {
     method: "POST",
     body: JSON.stringify({ password }),
+  });
+}
+
+export async function getSecuritySettings() {
+  return request("/auth/security");
+}
+
+export async function setupTwoFactor() {
+  return request("/auth/security/2fa/setup", {
+    method: "POST",
+  });
+}
+
+export async function enableTwoFactor(code: string) {
+  return request("/auth/security/2fa/enable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disableTwoFactor(code: string) {
+  return request("/auth/security/2fa/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getActiveSessions() {
+  return request("/auth/sessions");
+}
+
+export async function revokeOtherSessions() {
+  return request("/auth/sessions/revoke-all", {
+    method: "POST",
+  });
+}
+
+export async function deleteAccount(confirm: string) {
+  return request("/auth/account", {
+    method: "DELETE",
+    body: JSON.stringify({ confirm }),
   });
 }
 
@@ -193,6 +289,69 @@ export async function getSettings() {
 
 export async function updateSettings(updates: any) {
   return request("/settings", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function getProfileSettings() {
+  const data = await request("/settings/profile");
+  if (data && typeof data === "object" && data.profile && typeof data.profile === "object") {
+    return data;
+  }
+  return { profile: data || {}, security: null };
+}
+
+export async function updateProfileSettings(updates: any) {
+  const data = await request("/settings/profile", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+  if (data && typeof data === "object" && data.profile && typeof data.profile === "object") {
+    return data;
+  }
+  return { profile: data || {}, security: null };
+}
+
+export async function getNotificationSettings() {
+  return request("/settings/notifications");
+}
+
+export async function updateNotificationSettings(updates: any) {
+  return request("/settings/notifications", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function getAppearanceSettings() {
+  return request("/settings/appearance");
+}
+
+export async function updateAppearanceSettings(updates: any) {
+  return request("/settings/appearance", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function getIntegrationSettings() {
+  return request("/settings/integrations");
+}
+
+export async function updateIntegrationSettings(updates: any) {
+  return request("/settings/integrations", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function getBillingSettings() {
+  return request("/settings/billing");
+}
+
+export async function updateBillingSettings(updates: any) {
+  return request("/settings/billing", {
     method: "PUT",
     body: JSON.stringify(updates),
   });

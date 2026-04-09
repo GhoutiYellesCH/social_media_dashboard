@@ -25,24 +25,29 @@ import {
   Coins,
 } from "lucide-react";
 import { useTokens } from "./token-context";
+import { NAV_SECTIONS } from "../navigation-config";
 
-const mainNav = [
-  { icon: LayoutDashboard, label: "Tableau de Bord" },
-  { icon: CalendarDays, label: "Calendrier" },
-  { icon: PenSquare, label: "Composer" },
-  { icon: BarChart3, label: "Analytiques" },
-  { icon: Users, label: "Comptes" },
-];
-
-const marketingNav = [
-  { icon: Megaphone, label: "Ads Manager" },
-  { icon: BookOpen, label: "Blog" },
-  { icon: Mail, label: "Email Marketing" },
-  { icon: GitBranch, label: "Funnels" },
-  { icon: Link2, label: "Link-in-Bio" },
-  { icon: ExternalLink, label: "UTM Builder" },
-  { icon: Hash, label: "Hashtags" },
-];
+const NAV_ICONS: Record<string, typeof LayoutDashboard> = {
+  "Tableau de Bord": LayoutDashboard,
+  Calendrier: CalendarDays,
+  Composer: PenSquare,
+  Analytiques: BarChart3,
+  Comptes: Users,
+  "Ads Manager": Megaphone,
+  Blog: BookOpen,
+  "Email Marketing": Mail,
+  Funnels: GitBranch,
+  "Link-in-Bio": Link2,
+  "UTM Builder": ExternalLink,
+  Hashtags: Hash,
+  Inbox,
+  "Social Listening": Ear,
+  Equipe: UserCog,
+  Mediatheque: FolderOpen,
+  Parametres: Settings,
+  Aide: HelpCircle,
+  Tokens: Coins,
+};
 
 const accounts = [
   { platform: "Facebook", color: "#1877F2" },
@@ -130,8 +135,8 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {mainNav.map((item) => (
-          <NavButton key={item.label} icon={item.icon} label={item.label} />
+        {NAV_SECTIONS.main.map((item) => (
+          <NavButton key={item.label} icon={NAV_ICONS[item.label] || LayoutDashboard} label={item.label} />
         ))}
 
         {/* Marketing Section */}
@@ -150,8 +155,8 @@ export function Sidebar({
           </button>
           {marketingOpen && (
             <div className="space-y-1 mt-1">
-              {marketingNav.map((item) => (
-                <NavButton key={item.label} icon={item.icon} label={item.label} />
+              {NAV_SECTIONS.marketing.map((item) => (
+                <NavButton key={item.label} icon={NAV_ICONS[item.label] || LayoutDashboard} label={item.label} />
               ))}
             </div>
           )}
@@ -173,10 +178,9 @@ export function Sidebar({
           </button>
           {toolsOpen && (
             <div className="space-y-1 mt-1">
-              <NavButton icon={Inbox} label="Inbox" />
-              <NavButton icon={Ear} label="Social Listening" />
-              <NavButton icon={UserCog} label="Equipe" />
-              <NavButton icon={FolderOpen} label="Mediatheque" />
+              {NAV_SECTIONS.collaboration.map((item) => (
+                <NavButton key={item.label} icon={NAV_ICONS[item.label] || LayoutDashboard} label={item.label} />
+              ))}
             </div>
           )}
         </div>
@@ -225,8 +229,8 @@ export function Sidebar({
           </div>
         </button>
 
-        <NavButton icon={Settings} label="Parametres" />
-        <NavButton icon={HelpCircle} label="Aide" />
+        <NavButton icon={NAV_ICONS["Parametres"]} label="Parametres" />
+        <NavButton icon={NAV_ICONS["Aide"]} label="Aide" />
 
         {onLogout && (
           <button

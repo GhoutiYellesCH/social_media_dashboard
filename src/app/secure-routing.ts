@@ -1,35 +1,11 @@
+import { DEFAULT_NAV, NAV_TO_ROUTE, ROUTE_TO_NAV } from "./navigation-config";
+
 export type AppPage = "landing" | "login" | "dashboard";
-
-export const NAV_TO_ROUTE: Record<string, string> = {
-  "Tableau de Bord": "/app/dashboard",
-  "Calendrier": "/app/calendar",
-  "Composer": "/app/composer",
-  "Analytiques": "/app/analytics",
-  "Comptes": "/app/accounts",
-  "Parametres": "/app/settings",
-  "Aide": "/app/help",
-  "Ads Manager": "/app/ads",
-  "Blog": "/app/blog",
-  "Email Marketing": "/app/email",
-  "Funnels": "/app/funnels",
-  "Link-in-Bio": "/app/link-in-bio",
-  "UTM Builder": "/app/utm-builder",
-  "Hashtags": "/app/hashtags",
-  "Inbox": "/app/inbox",
-  "Social Listening": "/app/social-listening",
-  "Equipe": "/app/team",
-  "Mediatheque": "/app/media-library",
-  "Tokens": "/app/tokens",
-};
-
-const ROUTE_TO_NAV: Record<string, string> = Object.fromEntries(
-  Object.entries(NAV_TO_ROUTE).map(([label, path]) => [path, label])
-);
+export { DEFAULT_NAV };
 
 const PUBLIC_ROUTES = new Set(["/", "/login"]);
 const APP_ROUTES = new Set(Object.values(NAV_TO_ROUTE));
 
-export const DEFAULT_NAV = "Tableau de Bord";
 export const DEFAULT_APP_ROUTE = NAV_TO_ROUTE[DEFAULT_NAV];
 
 function sanitizePath(input: string) {

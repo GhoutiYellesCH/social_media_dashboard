@@ -30,45 +30,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Try to restore session on mount
   useEffect(() => {
-    const token = api.getAccessToken();
-    const storedUser = localStorage.getItem("socialdz_user");
-    if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        // invalid stored data
-      }
-      // Verify token is still valid
-      api.getMe().then((data) => {
-        if (data.user) {
-          const u = { id: data.user.id, email: data.user.email, name: data.user.name || "Utilisateur" };
-          setUser(u);
-          localStorage.setItem("socialdz_user", JSON.stringify(u));
-        }
-      }).catch(() => {
-        // Fallback when edge function is unreachable: validate token directly with Supabase Auth
-        supabase.auth.getUser(token).then(({ data }) => {
+    const restoreSession = async () => {
+      const token = api.getAccessToken();
+
+      if (token) {
+        try {
+          const data = await api.getMe();
           if (data?.user?.id) {
             const u = {
               id: data.user.id,
               email: data.user.email || "",
-              name: data.user.user_metadata?.name || "Utilisateur",
+              name: data.user.name || "Utilisateur",
             };
             setUser(u);
             localStorage.setItem("socialdz_user", JSON.stringify(u));
             return;
           }
-          api.logout();
-          setUser(null);
-        }).catch(() => {
-          api.logout();
-          setUser(null);
-        });
-      }).finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
+        } catch {
+          try {
+            const { data } = await supabase.auth.getUser(token);
+            if (data?.user?.id) {
+              const u = {
+                id: data.user.id,
+                email: data.user.email || "",
+                name: data.user.user_metadata?.name || "Utilisateur",
+              };
+              setUser(u);
+              localStorage.setItem("socialdz_user", JSON.stringify(u));
+              return;
+            }
+          } catch {
+            // ignore and try session recovery below
+          }
+        }
+      }
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+        if (session?.access_token && session?.user?.id) {
+          api.setAccessToken(session.access_token);
+          const u = {
+            id: session.user.id,
+            email: session.user.email || "",
+            name: session.user.user_metadata?.name || "Utilisateur",
+          };
+          setUser(u);
+          localStorage.setItem("socialdz_user", JSON.stringify(u));
+          return;
+        }
+      } catch {
+        // ignore and clear invalid local state below
+      }
+
+      api.logout();
+      setUser(null);
+    };
+
+    restoreSession().finally(() => setIsLoading(false));
   }, []);
+
+  const shouldUseSupabaseFallback = (err: any) => {
+    const status = Number(err?.status || 0);
+    const message = String(err?.message || "").toLowerCase();
+
+    if (status === 0 || status === 404 || status >= 500) return true;
+    if (
+      status === 401 && (
+        message.includes("erreur 401") ||
+        message.includes("route backend") ||
+        message.includes("introuvable") ||
+        message.includes("missing authorization header") ||
+        message.includes("authorization header") ||
+        message.includes("unauthorized") ||
+        message.includes("jwt")
+      )
+    ) {
+      return true;
+    }
+
+    return false;
+  };
 
   const loginFn = async (email: string, password: string) => {
     try {
@@ -81,10 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { success: false, error: data.error || "Erreur de connexion" };
     } catch (e: any) {
-      if (e?.status === 404 || e?.status === 0) {
+      // Login must remain resilient: when edge auth endpoints return 401 due to route/policy issues,
+      // fallback to direct Supabase Auth sign-in instead of stopping with a generic session error.
+      if (shouldUseSupabaseFallback(e) || Number(e?.status || 0) === 401) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error || !data.user) {
-          return { success: false, error: error?.message || "Erreur de connexion" };
+          return { success: false, error: error?.message || "Identifiants invalides." };
         }
         if (data.session?.access_token) {
           api.setAccessToken(data.session.access_token);
@@ -98,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("socialdz_user", JSON.stringify(u));
         return { success: true };
       }
-      return { success: false, error: e.message || "Erreur de connexion" };
+      return { success: false, error: e.message || "Identifiants invalides." };
     }
   };
 
@@ -113,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { success: false, error: data.error || "Erreur d'inscription" };
     } catch (e: any) {
-      if (e?.status === 404 || e?.status === 0) {
+      if (shouldUseSupabaseFallback(e)) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -148,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success) return { success: true };
       return { success: false, error: data.error || "Erreur lors de la réinitialisation" };
     } catch (e: any) {
-      if (e?.status === 404 || e?.status === 0) {
+      if (shouldUseSupabaseFallback(e)) {
         const { error } = await supabase.auth.resetPasswordForEmail(email);
         if (error) return { success: false, error: error.message || "Erreur système" };
         return { success: true };
@@ -163,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.success) return { success: true };
         return { success: false, error: data.error || "Erreur lors de la mise à jour" };
     } catch (e: any) {
-        if (e?.status === 404 || e?.status === 0) {
+        if (shouldUseSupabaseFallback(e)) {
           const { error } = await supabase.auth.updateUser({ password });
           if (error) return { success: false, error: error.message || "Erreur système" };
           return { success: true };

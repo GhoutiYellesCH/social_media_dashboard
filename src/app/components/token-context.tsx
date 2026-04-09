@@ -8,6 +8,7 @@ export interface TokenUsageLog {
   tokens: number;
   timestamp: string;
   module: string;
+  type: "consume" | "earn";
 }
 
 interface TokenContextType {
@@ -50,10 +51,7 @@ export function TokenProvider({ children }: { children: ReactNode }) {
       setMonthlyAllowance(tokenData.monthlyAllowance ?? 500);
 
       // Format history timestamps for display
-      const formattedHistory = (historyData || []).map((h: any) => ({
-        ...h,
-        timestamp: h.timestamp ? formatRelativeTime(h.timestamp) : "Maintenant",
-      }));
+      const formattedHistory = (historyData || []).map((h: any) => normalizeHistoryItem(h));
       setHistory(formattedHistory);
     } catch (e) {
       console.error("Failed to load tokens:", e);
@@ -85,6 +83,7 @@ export function TokenProvider({ children }: { children: ReactNode }) {
           tokens: amount,
           module,
           timestamp: "A l'instant",
+          type: "consume",
         },
         ...prev,
       ]);
@@ -165,4 +164,24 @@ function formatRelativeTime(isoString: string): string {
   } catch {
     return isoString;
   }
+}
+
+function normalizeHistoryItem(raw: any): TokenUsageLog {
+  const inferredType = raw?.type === "earn" || raw?.type === "purchase" ? "earn" : "consume";
+  const timestampSource = typeof raw?.timestamp === "string"
+    ? raw.timestamp
+    : typeof raw?.date === "string"
+    ? raw.date
+    : new Date().toISOString();
+
+  const rawTokens = Number(raw?.tokens ?? raw?.amount ?? 0);
+
+  return {
+    id: typeof raw?.id === "string" && raw.id ? raw.id : crypto.randomUUID(),
+    action: typeof raw?.action === "string" && raw.action ? raw.action : "Action IA",
+    module: typeof raw?.module === "string" && raw.module ? raw.module : "General",
+    tokens: Number.isFinite(rawTokens) ? Math.abs(Math.trunc(rawTokens)) : 0,
+    type: inferredType,
+    timestamp: formatRelativeTime(timestampSource),
+  };
 }

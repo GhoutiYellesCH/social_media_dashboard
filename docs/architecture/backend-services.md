@@ -4,6 +4,7 @@
 
 - Supabase Edge Function: `server`
 - Source: `supabase/functions/server/index.ts`
+- Settings routes module: `supabase/functions/server/routes/settings.ts`
 - KV helper: `supabase/functions/server/kv_store.ts`
 
 ## Core Responsibilities

@@ -25,6 +25,23 @@ Required headers:
 ### Auth
 - `POST /auth/update-password`
 - `GET /auth/me`
+- `GET /auth/security`
+- `POST /auth/security/2fa/setup`
+- `POST /auth/security/2fa/enable`
+- `POST /auth/security/2fa/disable`
+
+2FA account management contract:
+- `GET /auth/security`
+	- Returns `twoFactorEnabled`, `pendingSetup`, `updatedAt`
+- `POST /auth/security/2fa/setup`
+	- Starts enrollment and returns `secret` + `otpauthUri`
+	- Requires authenticated user and 2FA not already enabled
+- `POST /auth/security/2fa/enable`
+	- Body: `{ code }` (6 digits)
+	- Verifies pending TOTP secret and enables 2FA
+- `POST /auth/security/2fa/disable`
+	- Body: `{ code }` (6 digits)
+	- Verifies current TOTP code and disables 2FA
 
 ### Tokens
 - `GET /tokens`
@@ -33,6 +50,17 @@ Required headers:
 - `POST /tokens/baridimob/payment`
 - `GET /tokens/history`
 - `POST /tokens/upgrade`
+
+Token history contract (`GET /tokens/history`):
+- Canonical response entry fields:
+	- `id` (string)
+	- `action` (string)
+	- `module` (string)
+	- `tokens` (positive integer)
+	- `type` (`consume` | `earn`)
+	- `timestamp` (ISO-8601 string)
+- API normalizes legacy history records to this schema before returning.
+- Frontend renders relative time from `timestamp` and signed token values from `type`.
 
 ### Posts
 - `GET /posts`

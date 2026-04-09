@@ -3,6 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.ts";
+import { registerSettingsRoutes } from "./routes/settings.ts";
 
 const app = new Hono();
 const PREFIX = "/server"; // Supabase edge runtime exposes this function name in the internal request path
@@ -95,6 +96,146 @@ function timingSafeEqual(a: string, b: string): boolean {
     result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return result === 0;
+}
+
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function generateBase32Secret(length = 32): string {
+  const random = crypto.getRandomValues(new Uint8Array(length));
+  let secret = "";
+  for (let i = 0; i < random.length; i++) {
+    secret += BASE32_ALPHABET[random[i] % 32];
+  }
+  return secret;
+}
+
+function decodeBase32(input: string): Uint8Array {
+  const clean = input.toUpperCase().replace(/=+$/g, "").replace(/\s+/g, "");
+  let bits = "";
+  for (const char of clean) {
+    const val = BASE32_ALPHABET.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, "0");
+  }
+
+  const bytes: number[] = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  }
+  return new Uint8Array(bytes);
+}
+
+async function generateTotpCode(secret: string, timestampMs = Date.now()): Promise<string> {
+  const counter = Math.floor(timestampMs / 30000);
+  const counterBytes = new Uint8Array(8);
+  const view = new DataView(counterBytes.buffer);
+  view.setUint32(4, counter, false);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    decodeBase32(secret),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"]
+  );
+  const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, counterBytes));
+  const offset = digest[digest.length - 1] & 0x0f;
+  const code =
+    ((digest[offset] & 0x7f) << 24) |
+    ((digest[offset + 1] & 0xff) << 16) |
+    ((digest[offset + 2] & 0xff) << 8) |
+    (digest[offset + 3] & 0xff);
+
+  return String(code % 1000000).padStart(6, "0");
+}
+
+async function verifyTotpCode(secret: string, code: string, window = 1): Promise<boolean> {
+  const normalized = code.replace(/\D/g, "");
+  if (normalized.length !== 6) return false;
+
+  const now = Date.now();
+  for (let step = -window; step <= window; step++) {
+    const candidate = await generateTotpCode(secret, now + step * 30000);
+    if (timingSafeEqual(candidate, normalized)) return true;
+  }
+  return false;
+}
+
+type UserSecuritySettings = {
+  twoFactorEnabled: boolean;
+  twoFactorSecret?: string;
+  pendingTwoFactorSecret?: string;
+  updatedAt: string;
+};
+
+async function getSecuritySettings(userId: string): Promise<UserSecuritySettings> {
+  const current = await kv.get(`user:${userId}:security`);
+  if (current && typeof current === "object") {
+    return {
+      twoFactorEnabled: Boolean((current as any).twoFactorEnabled),
+      twoFactorSecret: typeof (current as any).twoFactorSecret === "string" ? (current as any).twoFactorSecret : undefined,
+      pendingTwoFactorSecret:
+        typeof (current as any).pendingTwoFactorSecret === "string" ? (current as any).pendingTwoFactorSecret : undefined,
+      updatedAt: typeof (current as any).updatedAt === "string" ? (current as any).updatedAt : new Date().toISOString(),
+    };
+  }
+
+  return {
+    twoFactorEnabled: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+type UserSession = {
+  id: string;
+  device: string;
+  location: string;
+  lastActive: string;
+  current: boolean;
+};
+
+function defaultCurrentSession(c: any): UserSession {
+  const userAgent = c.req.header("user-agent") || "Navigateur";
+  const forwardedFor = c.req.header("x-forwarded-for") || "IP masquee";
+  const normalizedIp = forwardedFor.split(",")[0]?.trim() || "IP masquee";
+
+  return {
+    id: "current",
+    device: userAgent.slice(0, 120),
+    location: normalizedIp,
+    lastActive: new Date().toISOString(),
+    current: true,
+  };
+}
+
+function sanitizeSessions(input: unknown): UserSession[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .filter((raw) => raw && typeof raw === "object")
+    .map((raw: any, index) => ({
+      id: typeof raw.id === "string" && raw.id ? raw.id : `session-${index + 1}`,
+      device: typeof raw.device === "string" && raw.device ? raw.device.slice(0, 120) : "Navigateur",
+      location: typeof raw.location === "string" && raw.location ? raw.location.slice(0, 120) : "Inconnu",
+      lastActive: isIsoDateString(raw.lastActive) ? raw.lastActive : new Date().toISOString(),
+      current: Boolean(raw.current),
+    }));
+}
+
+async function getUserSessions(c: any, userId: string): Promise<UserSession[]> {
+  const stored = await kv.get(`user:${userId}:security:sessions`);
+  const sessions = sanitizeSessions(stored);
+
+  if (sessions.length === 0) {
+    return [defaultCurrentSession(c)];
+  }
+
+  const hasCurrent = sessions.some((session) => session.current);
+  if (!hasCurrent) {
+    sessions.unshift(defaultCurrentSession(c));
+  }
+
+  return sessions;
 }
 
 // Default token config per plan
@@ -242,6 +383,28 @@ const SETTINGS_MAX_LENGTH: Record<string, number> = {
   language: 50,
 };
 
+const NOTIFICATION_ALLOWED_KEYS = new Set([
+  "email",
+  "push",
+  "postPublished",
+  "weeklyReport",
+  "teamActivity",
+  "newFollower",
+  "tokenLow",
+]);
+
+const APPEARANCE_THEME_VALUES = new Set(["Clair", "Sombre", "Systeme"]);
+
+const INTEGRATION_ALLOWED_KEYS = new Set([
+  "Canva",
+  "Google Analytics",
+  "WhatsApp Business",
+  "Shopify",
+  "CIB / Dahabia",
+]);
+
+const BILLING_ALLOWED_KEYS = new Set(["cardBrand", "cardLast4", "cardExpiry"]);
+
 function sanitizeSettings(input: unknown) {
   if (!input || typeof input !== "object") return {};
   const obj = input as Record<string, unknown>;
@@ -292,6 +455,245 @@ function validateSettingsUpdatePayload(input: unknown): { ok: true; value: Recor
   }
 
   return { ok: true, value: sanitizeSettings(obj) };
+}
+
+function sanitizeNotificationSettings(input: unknown) {
+  const defaults = {
+    email: true,
+    push: true,
+    postPublished: true,
+    weeklyReport: true,
+    teamActivity: false,
+    newFollower: false,
+    tokenLow: true,
+  };
+
+  if (!input || typeof input !== "object") return defaults;
+  const obj = input as Record<string, unknown>;
+  const sanitized: Record<string, boolean> = { ...defaults };
+  for (const key of Object.keys(obj)) {
+    if (!NOTIFICATION_ALLOWED_KEYS.has(key)) continue;
+    sanitized[key] = Boolean(obj[key]);
+  }
+  return sanitized;
+}
+
+function validateNotificationSettingsUpdatePayload(input: unknown): { ok: true; value: Record<string, boolean> } | { ok: false; error: string } {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Payload notifications invalide." };
+  }
+
+  const obj = input as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) {
+    return { ok: false, error: "Aucune propriete notification fournie." };
+  }
+
+  for (const key of keys) {
+    if (!NOTIFICATION_ALLOWED_KEYS.has(key)) {
+      return { ok: false, error: `Champ notification non autorise: ${key}` };
+    }
+    if (typeof obj[key] !== "boolean") {
+      return { ok: false, error: `Le champ ${key} doit etre un booleen.` };
+    }
+  }
+
+  return { ok: true, value: sanitizeNotificationSettings(obj) };
+}
+
+function sanitizeAppearanceSettings(input: unknown) {
+  const defaults = {
+    theme: "Systeme",
+    accentColor: "#2563EB",
+  };
+
+  if (!input || typeof input !== "object") return defaults;
+  const obj = input as Record<string, unknown>;
+  const theme = typeof obj.theme === "string" && APPEARANCE_THEME_VALUES.has(obj.theme)
+    ? obj.theme
+    : defaults.theme;
+  const accentColor = typeof obj.accentColor === "string" && /^#[0-9a-fA-F]{6}$/.test(obj.accentColor)
+    ? obj.accentColor.toUpperCase()
+    : defaults.accentColor;
+  return { theme, accentColor };
+}
+
+function validateAppearanceSettingsUpdatePayload(input: unknown): { ok: true; value: { theme: string; accentColor: string } } | { ok: false; error: string } {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Payload apparence invalide." };
+  }
+
+  const obj = input as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) {
+    return { ok: false, error: "Aucune propriete apparence fournie." };
+  }
+
+  for (const key of keys) {
+    if (key !== "theme" && key !== "accentColor") {
+      return { ok: false, error: `Champ apparence non autorise: ${key}` };
+    }
+  }
+
+  if ("theme" in obj && (typeof obj.theme !== "string" || !APPEARANCE_THEME_VALUES.has(obj.theme))) {
+    return { ok: false, error: "Theme invalide." };
+  }
+  if ("accentColor" in obj && (typeof obj.accentColor !== "string" || !/^#[0-9a-fA-F]{6}$/.test(obj.accentColor))) {
+    return { ok: false, error: "Couleur d'accent invalide." };
+  }
+
+  return { ok: true, value: sanitizeAppearanceSettings(obj) };
+}
+
+function sanitizeIntegrationSettings(input: unknown) {
+  const defaults: Record<string, boolean> = {
+    "Canva": true,
+    "Google Analytics": true,
+    "WhatsApp Business": false,
+    "Shopify": false,
+    "CIB / Dahabia": true,
+  };
+
+  if (!input || typeof input !== "object") return defaults;
+  const obj = input as Record<string, unknown>;
+  const sanitized: Record<string, boolean> = { ...defaults };
+  for (const key of Object.keys(obj)) {
+    if (!INTEGRATION_ALLOWED_KEYS.has(key)) continue;
+    sanitized[key] = Boolean(obj[key]);
+  }
+  return sanitized;
+}
+
+function validateIntegrationSettingsUpdatePayload(input: unknown): { ok: true; value: Record<string, boolean> } | { ok: false; error: string } {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Payload integrations invalide." };
+  }
+
+  const obj = input as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) {
+    return { ok: false, error: "Aucune propriete integration fournie." };
+  }
+
+  for (const key of keys) {
+    if (!INTEGRATION_ALLOWED_KEYS.has(key)) {
+      return { ok: false, error: `Champ integration non autorise: ${key}` };
+    }
+    if (typeof obj[key] !== "boolean") {
+      return { ok: false, error: `Le champ ${key} doit etre un booleen.` };
+    }
+  }
+
+  return { ok: true, value: sanitizeIntegrationSettings(obj) };
+}
+
+function sanitizeBillingSettings(input: unknown) {
+  const defaults = {
+    cardBrand: "CIB / Dahabia",
+    cardLast4: "8742",
+    cardExpiry: "06/2028",
+  };
+
+  if (!input || typeof input !== "object") return defaults;
+
+  const obj = input as Record<string, unknown>;
+  const cardBrand = typeof obj.cardBrand === "string" && obj.cardBrand.trim()
+    ? obj.cardBrand.trim().slice(0, 80)
+    : defaults.cardBrand;
+  const cardLast4 = typeof obj.cardLast4 === "string" && /^[0-9]{4}$/.test(obj.cardLast4)
+    ? obj.cardLast4
+    : defaults.cardLast4;
+  const cardExpiry = typeof obj.cardExpiry === "string" && /^(0[1-9]|1[0-2])\/(20[0-9]{2})$/.test(obj.cardExpiry)
+    ? obj.cardExpiry
+    : defaults.cardExpiry;
+
+  return { cardBrand, cardLast4, cardExpiry };
+}
+
+function validateBillingSettingsUpdatePayload(input: unknown): { ok: true; value: { cardBrand: string; cardLast4: string; cardExpiry: string } } | { ok: false; error: string } {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Payload facturation invalide." };
+  }
+
+  const obj = input as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) {
+    return { ok: false, error: "Aucune propriete facturation fournie." };
+  }
+
+  for (const key of keys) {
+    if (!BILLING_ALLOWED_KEYS.has(key)) {
+      return { ok: false, error: `Champ facturation non autorise: ${key}` };
+    }
+
+    if (typeof obj[key] !== "string") {
+      return { ok: false, error: `Le champ ${key} doit etre une chaine de caracteres.` };
+    }
+  }
+
+  const payload = sanitizeBillingSettings(obj);
+
+  if (!payload.cardBrand) {
+    return { ok: false, error: "Le type de carte est requis." };
+  }
+  if (!/^[0-9]{4}$/.test(payload.cardLast4)) {
+    return { ok: false, error: "Les 4 derniers chiffres de la carte sont invalides." };
+  }
+  if (!/^(0[1-9]|1[0-2])\/(20[0-9]{2})$/.test(payload.cardExpiry)) {
+    return { ok: false, error: "La date d'expiration doit etre au format MM/YYYY." };
+  }
+
+  return { ok: true, value: payload };
+}
+
+type TokenHistoryType = "consume" | "earn";
+
+function normalizeTokenAmount(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  }
+  return 0;
+}
+
+function normalizeTokenHistoryEntry(entry: any) {
+  const rawType = entry?.type;
+  const inferredType: TokenHistoryType = rawType === "earn" || rawType === "purchase"
+    ? "earn"
+    : "consume";
+
+  const rawAmount = normalizeTokenAmount(entry?.tokens ?? entry?.amount ?? 0);
+  const normalizedAmount = Math.abs(rawAmount);
+
+  return {
+    id: typeof entry?.id === "string" && entry.id ? entry.id : crypto.randomUUID(),
+    action: typeof entry?.action === "string" && entry.action.trim() ? entry.action.trim() : "Action IA",
+    module: typeof entry?.module === "string" && entry.module.trim() ? entry.module.trim() : "General",
+    tokens: normalizedAmount,
+    type: inferredType,
+    timestamp: isIsoDateString(entry?.timestamp)
+      ? entry.timestamp
+      : isIsoDateString(entry?.date)
+      ? entry.date
+      : new Date().toISOString(),
+  };
+}
+
+function createTokenHistoryEntry(input: {
+  action: string;
+  module?: string;
+  tokens: number;
+  type: TokenHistoryType;
+}) {
+  return {
+    id: crypto.randomUUID(),
+    action: input.action,
+    module: input.module || "General",
+    tokens: Math.abs(Math.trunc(input.tokens)),
+    type: input.type,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 async function ensureUserData(userId: string, email?: string, name?: string) {
@@ -499,6 +901,204 @@ app.post(`${PREFIX}/auth/update-password`, async (c) => {
   }
 });
 
+// GET /auth/security
+app.get(`${PREFIX}/auth/security`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const security = await getSecuritySettings(userId as string);
+    return c.json({
+      twoFactorEnabled: security.twoFactorEnabled,
+      pendingSetup: Boolean(security.pendingTwoFactorSecret),
+      updatedAt: security.updatedAt,
+    });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /auth/security/2fa/setup
+app.post(`${PREFIX}/auth/security/2fa/setup`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const security = await getSecuritySettings(userId as string);
+    if (security.twoFactorEnabled) {
+      return c.json({ error: "2FA deja activee." }, 400);
+    }
+
+    const secret = generateBase32Secret(32);
+    const settings = await kv.get(`user:${userId}:settings`);
+    const email = (settings && typeof settings === "object" && typeof (settings as any).email === "string")
+      ? (settings as any).email
+      : "utilisateur@socialdz.app";
+
+    await kv.set(`user:${userId}:security`, {
+      ...security,
+      pendingTwoFactorSecret: secret,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const issuer = "SocialdZ";
+    const account = encodeURIComponent(email);
+    const otpauthUri = `otpauth://totp/${issuer}:${account}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
+
+    return c.json({
+      success: true,
+      secret,
+      otpauthUri,
+      message: "Scannez le code dans votre application d'authentification puis confirmez avec un code a 6 chiffres.",
+    });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /auth/security/2fa/enable
+app.post(`${PREFIX}/auth/security/2fa/enable`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const { code } = await c.req.json();
+    if (!code) return c.json({ error: "Code 2FA requis." }, 400);
+
+    const security = await getSecuritySettings(userId as string);
+    if (!security.pendingTwoFactorSecret) {
+      return c.json({ error: "Aucune configuration 2FA en attente." }, 400);
+    }
+
+    const valid = await verifyTotpCode(security.pendingTwoFactorSecret, String(code));
+    if (!valid) {
+      return c.json({ error: "Code 2FA invalide." }, 400);
+    }
+
+    await kv.set(`user:${userId}:security`, {
+      twoFactorEnabled: true,
+      twoFactorSecret: security.pendingTwoFactorSecret,
+      pendingTwoFactorSecret: undefined,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return c.json({ success: true, twoFactorEnabled: true });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /auth/security/2fa/disable
+app.post(`${PREFIX}/auth/security/2fa/disable`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const { code } = await c.req.json();
+    if (!code) return c.json({ error: "Code 2FA requis." }, 400);
+
+    const security = await getSecuritySettings(userId as string);
+    if (!security.twoFactorEnabled || !security.twoFactorSecret) {
+      return c.json({ error: "2FA non activee." }, 400);
+    }
+
+    const valid = await verifyTotpCode(security.twoFactorSecret, String(code));
+    if (!valid) {
+      return c.json({ error: "Code 2FA invalide." }, 400);
+    }
+
+    await kv.set(`user:${userId}:security`, {
+      twoFactorEnabled: false,
+      twoFactorSecret: undefined,
+      pendingTwoFactorSecret: undefined,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return c.json({ success: true, twoFactorEnabled: false });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// GET /auth/sessions
+app.get(`${PREFIX}/auth/sessions`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const sessions = await getUserSessions(c, userId as string);
+    await kv.set(`user:${userId}:security:sessions`, sessions);
+    return c.json({ sessions });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// POST /auth/sessions/revoke-all
+app.post(`${PREFIX}/auth/sessions/revoke-all`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const currentSession = defaultCurrentSession(c);
+    await kv.set(`user:${userId}:security:sessions`, [currentSession]);
+    return c.json({
+      success: true,
+      sessions: [currentSession],
+      message: "Les autres sessions ont ete deconnectees.",
+    });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
+// DELETE /auth/account
+app.delete(`${PREFIX}/auth/account`, async (c) => {
+  const userId = await getUserId(c);
+  const authErr = requireAuth(c, userId);
+  if (authErr) return authErr;
+
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const confirmation = typeof body?.confirm === "string" ? body.confirm.trim().toUpperCase() : "";
+    if (confirmation !== "SUPPRIMER" && confirmation !== "DELETE") {
+      return c.json({ error: "Confirmation invalide. Utilisez SUPPRIMER." }, 400);
+    }
+
+    const supabase = supabaseAdmin();
+    const { error } = await supabase.auth.admin.deleteUser(userId as string);
+    if (error) {
+      return c.json({ error: `Suppression du compte echouee: ${error.message}` }, 400);
+    }
+
+    const cleanupKeys = [
+      `user:${userId}:settings`,
+      `user:${userId}:settings:notifications`,
+      `user:${userId}:settings:appearance`,
+      `user:${userId}:settings:integrations`,
+      `user:${userId}:settings:billing`,
+      `user:${userId}:security`,
+      `user:${userId}:security:sessions`,
+      `user:${userId}:tokens`,
+      `user:${userId}:token_history`,
+      `user:${userId}:posts`,
+      `user:${userId}:accounts`,
+    ];
+
+    await Promise.all(cleanupKeys.map((key) => kv.del(key).catch(() => undefined)));
+
+    return c.json({ success: true, message: "Compte supprime." });
+  } catch (e) {
+    return c.json({ error: `Erreur serveur: ${e}` }, 500);
+  }
+});
+
 // GET /auth/me - get current user info
 app.get(`${PREFIX}/auth/me`, async (c) => {
   const userId = await getUserId(c);
@@ -587,13 +1187,12 @@ app.post(`${PREFIX}/tokens/consume`, async (c) => {
 
     // Add to history
     const history = (await kv.get(`user:${userId}:token_history`)) || [];
-    const logEntry = {
-      id: crypto.randomUUID(),
+    const logEntry = createTokenHistoryEntry({
       action: action || "Action IA",
-      tokens: amount,
       module: module || "Inconnu",
-      timestamp: new Date().toISOString(),
-    };
+      tokens: amount,
+      type: "consume",
+    });
     history.unshift(logEntry);
     // Keep only last 100 entries
     if (history.length > 100) history.length = 100;
@@ -677,13 +1276,13 @@ app.post(`${PREFIX}/webhooks/baridimob`, async (c) => {
       await kv.set(`user:${userId}:tokens`, tokens);
       
       const history = await kv.get(`user:${userId}:token_history`) || [];
-      history.unshift({
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
+      history.unshift(createTokenHistoryEntry({
         action: "Achat Baridimob",
-        amount: addedTokens,
+        module: "Paiement",
+        tokens: addedTokens,
         type: "earn",
-      });
+      }));
+      if (history.length > 100) history.length = 100;
       await kv.set(`user:${userId}:token_history`, history);
     }
     
@@ -716,6 +1315,16 @@ app.post(`${PREFIX}/tokens/purchase`, async (c) => {
     tokens.balance += amount;
     await kv.set(`user:${userId}:tokens`, tokens);
 
+    const history = (await kv.get(`user:${userId}:token_history`)) || [];
+    history.unshift(createTokenHistoryEntry({
+      action: "Achat de tokens",
+      module: "Paiement",
+      tokens: amount,
+      type: "earn",
+    }));
+    if (history.length > 100) history.length = 100;
+    await kv.set(`user:${userId}:token_history`, history);
+
     return c.json({
       success: true,
       balance: tokens.balance,
@@ -736,7 +1345,10 @@ app.get(`${PREFIX}/tokens/history`, async (c) => {
 
   try {
     const history = (await kv.get(`user:${userId}:token_history`)) || [];
-    return c.json(history);
+    const normalizedHistory = Array.isArray(history)
+      ? history.map((entry: any) => normalizeTokenHistoryEntry(entry))
+      : [];
+    return c.json(normalizedHistory);
   } catch (e) {
     console.log("Get token history error:", e);
     return c.json({ error: `Erreur lors de la recuperation de l'historique: ${e}` }, 500);
@@ -893,46 +1505,25 @@ app.delete(`${PREFIX}/posts/:id`, async (c) => {
   }
 });
 
-// =========================
-// SETTINGS ROUTES
-// =========================
-
-// GET /settings
-app.get(`${PREFIX}/settings`, async (c) => {
-  const userId = await getUserId(c);
-  const authErr = requireAuth(c, userId);
-  if (authErr) return authErr;
-
-  try {
-    const settings = (await kv.get(`user:${userId}:settings`)) || {};
-    return c.json(sanitizeSettings(settings));
-  } catch (e) {
-    console.log("Get settings error:", e);
-    return c.json({ error: `Erreur lors de la recuperation des parametres: ${e}` }, 500);
-  }
-});
-
-// PUT /settings
-app.put(`${PREFIX}/settings`, async (c) => {
-  const userId = await getUserId(c);
-  const authErr = requireAuth(c, userId);
-  if (authErr) return authErr;
-
-  try {
-    const updates = await c.req.json();
-    const validation = validateSettingsUpdatePayload(updates);
-    if (!validation.ok) {
-      return c.json({ error: validation.error }, 400);
-    }
-
-    const existing = sanitizeSettings((await kv.get(`user:${userId}:settings`)) || {});
-    const merged = { ...existing, ...validation.value };
-    await kv.set(`user:${userId}:settings`, merged);
-    return c.json({ success: true, settings: merged });
-  } catch (e) {
-    console.log("Update settings error:", e);
-    return c.json({ error: `Erreur lors de la sauvegarde des parametres: ${e}` }, 500);
-  }
+registerSettingsRoutes({
+  app,
+  prefix: PREFIX,
+  getUserId,
+  requireAuth,
+  ensureUserData,
+  supabaseAdmin,
+  getSecuritySettings,
+  sanitizeSettings,
+  validateSettingsUpdatePayload,
+  sanitizeNotificationSettings,
+  validateNotificationSettingsUpdatePayload,
+  sanitizeAppearanceSettings,
+  validateAppearanceSettingsUpdatePayload,
+  sanitizeIntegrationSettings,
+  validateIntegrationSettingsUpdatePayload,
+  sanitizeBillingSettings,
+  validateBillingSettingsUpdatePayload,
+  kv,
 });
 
 // =========================
